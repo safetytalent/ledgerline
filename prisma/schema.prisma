@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Firm {
+  id        String     @id @default(cuid())
+  name      String
+  locations Location[]
+  createdAt DateTime   @default(now())
+}
+
+model Location {
+  id        String         @id @default(cuid())
+  firm      Firm           @relation(fields: [firmId], references: [id])
+  firmId    String
+  name      String   // e.g. "Houston TX3"
+  territory String?
+  clients   Client[]
+  users     UserLocation[]
+  createdAt DateTime       @default(now())
+}
+
+// Maps a Supabase auth user (auth.uid()) to the location they work at.
+// This is what prisma/sql/rls_policies.sql checks against — without a
+// row here, a user can see nothing, which is the safe default.
+model UserLocation {
+  id         String   @id @default(cuid())
+  userId     String   // Supabase auth.users.id — not a local FK, lives in a different schema
+  location   Location @relation(fields: [locationId], references: [id])
+  locationId String
+  role       String   @default("staff") // "staff" | "manager" | "owner"
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, locationId])
+}
+
+model Client {
+  id            String                @id @default(cuid())
+  location      Location              @relation(fields: [locationId], references: [id])
+  locationId    String
+  name          String
+  qboRealmId    String?               // QuickBooks company connection id
+  qboTokens     QboConnection?
+  transactions  Transaction[]
+  corrections   CorrectionMemory[]
+  createdAt     DateTime              @default(now())
+}
+
+model QboConnection {
+  id           String   @id @default(cuid())
+  client       Client   @relation(fields: [clientId], references: [id])
+  clientId     String   @unique
+  accessToken  String   // store encrypted at rest
+  refreshToken String   // store encrypted at rest
+  expiresAt    DateTime
+}
+
+model Transaction {
+  id              String    @id @default(cuid())
+  client          Client    @relation(fields: [clientId], references: [id])
+  clientId        String
+  qboTxnId        String
+  vendorName      String
+  amount          Decimal
+  txnDate         DateTime
+  suggestedCategory String?
+  confidence      Int       // 0-100
+  reasoning       String?   // human-readable explanation shown in the UI
+  status          TxnStatus @default(PENDING)
+  autoPosted      Boolean   @default(false)
+  finalCategory   String?
+  createdAt       DateTime  @default(now())
+}
+
+enum TxnStatus {
+  PENDING
+  AUTO_POSTED
+  CONFIRMED
+  RECODED
+  FLAGGED
+  ESCALATED
+}
+
+// The per-client "learning" table — corrections feed future confidence
+model CorrectionMemory {
+  id              String   @id @default(cuid())
+  client          Client   @relation(fields: [clientId], references: [id])
+  clientId        String
+  vendorName      String
+  correctCategory String
+  jobOrCostCode   String?
+  timesConfirmed  Int      @default(1)
+  lastUsedAt      DateTime @default(now())
+
+  @@unique([clientId, vendorName])
+}
+
+// Stubbed for Phase 4 — not built out yet, schema reserved
+model RoyaltyReport {
+  id         String   @id @default(cuid())
+  locationId String
+  periodEnd  DateTime
+  revenue    Decimal
+  royaltyDue Decimal
+  reportedAt DateTime @default(now())
+}
