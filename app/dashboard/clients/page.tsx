@@ -1,5 +1,6 @@
 import SideNav from "@/components/nav/SideNav";
 import AgentActivityPanel from "@/components/agent/AgentActivityPanel";
+import ServiceEditor from "@/components/clients/ServiceEditor";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +41,7 @@ export default async function ClientsPage() {
                   <th className="pb-2 font-medium">Client</th>
                   <th className="pb-2 font-medium">QuickBooks status</th>
                   <th className="pb-2 font-medium">Subscription</th>
+                  <th className="pb-2 font-medium">Services</th>
                   <th className="pb-2 font-medium">Transactions on file</th>
                 </tr>
               </thead>
@@ -75,12 +77,15 @@ export default async function ClientsPage() {
                         </a>
                       )}
                     </td>
+                    <td className="py-3">
+                      <ServiceEditor clientId={c.id} initialServices={c.activeServices} />
+                    </td>
                     <td className="py-3 font-mono">{c._count.transactions}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-         )}
+          )}
         </div>
       </div>
 

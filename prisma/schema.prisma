@@ -49,6 +49,13 @@ model Client {
   subscription  Subscription?
   transactions  Transaction[]
   corrections   CorrectionMemory[]
+  // Which of the firm's service lines this client is signed up for —
+  // values come from lib/services.ts (the 50-item service catalog).
+  // Only "Monthly Bookkeeping" is software-automated today (the
+  // transaction review queue); the rest are tracked here so staff can
+  // see and manage the full client relationship in one place, even
+  // before each service gets its own dedicated workflow built out.
+  activeServices String[]             @default([])
   createdAt     DateTime              @default(now())
 }
 
