@@ -58,7 +58,32 @@ model Client {
   // see and manage the full client relationship in one place, even
   // before each service gets its own dedicated workflow built out.
   activeServices String[]             @default([])
+  // Entity type drives which tax documents are required and whether
+  // K-1s apply at all — K-1s only exist for S-corps and partnerships,
+  // never C-corps or sole props. Nullable until staff sets it.
+  entityType    EntityType?
+  owners        ClientOwner[]
   createdAt     DateTime              @default(now())
+}
+
+enum EntityType {
+  S_CORP
+  C_CORP
+  PARTNERSHIP
+  SOLE_PROP
+  INDIVIDUAL
+}
+
+// Shareholders (S-corp) or partners (partnership) and their ownership
+// share — this is what determines how many K-1s are needed and how
+// income is split between them. Not used for C-corp or sole prop.
+model ClientOwner {
+  id                String   @id @default(cuid())
+  client            Client   @relation(fields: [clientId], references: [id])
+  clientId          String
+  name              String
+  ownershipPercent  Decimal
+  createdAt         DateTime @default(now())
 }
 
 // Tracks whether a client is a paying subscriber. One row per client,
@@ -161,5 +186,9 @@ model Document {
   clientId    String
   fileName    String
   storagePath String
+  // Tags this file as a specific required document (e.g. "Profit & Loss",
+  // "Form 940") so the tax prep checklist can match uploads against
+  // what's still missing. Null means "uploaded but not yet categorized."
+  docType     String?
   uploadedAt  DateTime @default(now())
 }
