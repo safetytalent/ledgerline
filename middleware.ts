@@ -52,10 +52,12 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Protect everything except static assets, images, and QBO's own
-  // OAuth/webhook routes (Intuit calls those directly, with no
-  // Supabase session — they must stay reachable).
+  // Protect everything except static assets, images, and the two
+  // kinds of routes that must stay reachable with no user session:
+  // QBO's OAuth/webhook callbacks, and Stripe's webhook (Stripe has
+  // no login — without this exclusion, its POST requests were being
+  // redirected to /login and never reaching our webhook code).
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/qbo).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/qbo|api/billing/webhook).*)",
   ],
 };
