@@ -5,16 +5,17 @@ import { usePathname } from "next/navigation";
 
 const NAV_SECTIONS = [
   {
-    label: "Work",
+    label: "Clients",
     items: [
-      { name: "Review Queue", href: "/dashboard" },
       { name: "Client Books", href: "/dashboard/clients" },
+      { name: "Work Queue", href: "/dashboard/review-queue" },
       { name: "Close Checklist", href: "/dashboard/close-checklist" },
+      { name: "Tax Prep Checklist", href: "/dashboard/tax-prep" },
       { name: "Documents", href: "/dashboard/documents" },
     ],
   },
   {
-    label: "Intelligence",
+    label: "Firm oversight",
     items: [
       { name: "Agent Activity", href: "/dashboard/agent-activity" },
       { name: "Anomalies", href: "/dashboard/anomalies" },
@@ -35,7 +36,9 @@ export default function SideNav() {
 
   return (
     <div className="bg-ink text-[#DDE3F0] flex flex-col p-5 h-full">
-      <div className="font-display text-xl font-semibold text-white mb-1">Ledgerline</div>
+      <Link href="/dashboard/clients" className="font-display text-xl font-semibold text-white mb-1">
+        Ledgerline
+      </Link>
       <div className="text-[11px] text-[#8B97BE] mb-7">Sierra Bookkeeping — Houston TX</div>
 
       {NAV_SECTIONS.map((section) => (

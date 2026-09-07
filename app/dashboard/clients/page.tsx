@@ -1,4 +1,5 @@
 import SideNav from "@/components/nav/SideNav";
+import Link from "next/link";
 import AgentActivityPanel from "@/components/agent/AgentActivityPanel";
 import ServiceEditor from "@/components/clients/ServiceEditor";
 import SyncNowButton from "@/components/clients/SyncNowButton";
@@ -51,7 +52,11 @@ export default async function ClientsPage() {
               <tbody>
                 {clients.map((c: (typeof clients)[number]) => (
                   <tr key={c.id} className="border-b border-line">
-                    <td className="py-3 font-medium">{c.name}</td>
+                    <td className="py-3 font-medium">
+                      <Link href={`/dashboard/clients/${c.id}`} className="hover:underline">
+                        {c.name}
+                      </Link>
+                    </td>
                     <td className="py-3">
                       {c.qboTokens ? (
                         <div>
