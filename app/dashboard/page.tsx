@@ -3,6 +3,12 @@ import KpiStrip from "@/components/kpi/KpiStrip";
 import ReviewQueue from "@/components/queue/ReviewQueue";
 import AgentActivityPanel from "@/components/agent/AgentActivityPanel";
 
+// Without this, Next.js treats this page as static (no per-request
+// data source detected at build time) and serves a frozen snapshot
+// from whatever the database looked like when it was last built.
+export const dynamic = "force-dynamic";
+
+
 export default function DashboardPage() {
   return (
     <div className="grid grid-cols-[216px_1fr_300px] h-screen">
