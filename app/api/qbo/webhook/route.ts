@@ -2,21 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { categorizeTransaction, meetsAutoPostThreshold } from "@/lib/agents/categorization-agent";
+import { fetchEntityById, extractTransactionFields, refreshAccessToken } from "@/lib/qbo/client";
+import { encryptSecret, decryptSecret } from "@/lib/crypto";
 
 /**
  * POST /api/qbo/webhook
  *
  * Intuit calls this whenever a subscribed event happens (new/updated
  * transaction). The `intuit-signature` header is verified against
- * QBO_CLIENT_SECRET (technically the webhook "verifier token" Intuit
- * issues separately — see QBO_WEBHOOK_VERIFIER_TOKEN below) before the
- * payload is trusted. Without this, anyone who finds this URL could
- * post fake transaction events and get them auto-categorized/posted.
+ * QBO_WEBHOOK_VERIFIER_TOKEN before the payload is trusted.
  *
- * Flow once verified:
- *   1. For each changed transaction, pull the full record from QBO.
- *   2. Run it through the categorization agent.
- *   3. Auto-post or drop into the review queue based on confidence.
+ * Flow:
+ *   1. For each changed transaction, get a valid access token
+ *      (refreshing it first if it's expired).
+ *   2. Pull the real transaction from QBO (real vendor/amount/date —
+ *      no more placeholder data).
+ *   3. Run it through the categorization agent.
+ *   4. Auto-post or drop into the review queue based on confidence.
+ *
+ * Handles Purchase and Bill entity types fully. Other types (Deposit,
+ * Invoice, etc.) are recorded with a generic label rather than guessed
+ * at — see extractTransactionFields in lib/qbo/client.ts.
  */
 function isValidIntuitSignature(rawBody: string, signatureHeader: string | null): boolean {
   const verifierToken = process.env.QBO_WEBHOOK_VERIFIER_TOKEN;
@@ -27,15 +33,40 @@ function isValidIntuitSignature(rawBody: string, signatureHeader: string | null)
   }
   if (!signatureHeader) return false;
 
-  const expected = crypto
-    .createHmac("sha256", verifierToken)
-    .update(rawBody)
-    .digest("base64");
+  const expected = crypto.createHmac("sha256", verifierToken).update(rawBody).digest("base64");
 
   const sigBuf = Buffer.from(signatureHeader);
   const expectedBuf = Buffer.from(expected);
   if (sigBuf.length !== expectedBuf.length) return false;
   return crypto.timingSafeEqual(sigBuf, expectedBuf);
+}
+
+/**
+ * Returns a valid, decrypted access token for a client — refreshing
+ * and re-saving it first if the stored one has expired. QBO access
+ * tokens are short-lived (about 1 hour), so this will run often.
+ */
+async function getValidAccessToken(clientId: string): Promise<string | null> {
+  const conn = await prisma.qboConnection.findUnique({ where: { clientId } });
+  if (!conn) return null;
+
+  if (conn.expiresAt > new Date()) {
+    return decryptSecret(conn.accessToken);
+  }
+
+  const refreshToken = decryptSecret(conn.refreshToken);
+  const tokens = await refreshAccessToken(refreshToken);
+
+  await prisma.qboConnection.update({
+    where: { clientId },
+    data: {
+      accessToken: encryptSecret(tokens.access_token),
+      refreshToken: encryptSecret(tokens.refresh_token),
+      expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+    },
+  });
+
+  return tokens.access_token;
 }
 
 export async function POST(req: NextRequest) {
@@ -54,11 +85,25 @@ export async function POST(req: NextRequest) {
     const client = await prisma.client.findFirst({ where: { qboRealmId: realmId } });
     if (!client) continue;
 
+    const accessToken = await getValidAccessToken(client.id);
+    if (!accessToken) continue; // no connection on file for this client
+
     for (const entity of event.dataChangeEvent?.entities ?? []) {
-      // In a real implementation: fetch full transaction details from
-      // QBO using entity.id, then extract vendorName/amount/date below.
-      const vendorName = "PLACEHOLDER_VENDOR";
-      const amount = 0;
+      const entityType = entity.name; // e.g. "Purchase", "Bill", "Deposit"
+
+      let vendorName: string;
+      let amount: number;
+      let txnDate: Date;
+
+      try {
+        const raw = await fetchEntityById(realmId, accessToken, entityType, entity.id);
+        if (!raw) continue;
+        ({ vendorName, amount, txnDate } = extractTransactionFields(entityType, raw));
+      } catch {
+        // If QBO's API call fails for this one entity, skip it rather
+        // than saving a fabricated placeholder row.
+        continue;
+      }
 
       const lookupMemory = async (clientId: string, vendor: string) => {
         const row = await prisma.correctionMemory.findUnique({
@@ -76,18 +121,27 @@ export async function POST(req: NextRequest) {
 
       const result = await categorizeTransaction(client.id, vendorName, amount, lookupMemory);
 
-      await prisma.transaction.create({
-        data: {
+      await prisma.transaction.upsert({
+        where: { qboTxnId: entity.id },
+        create: {
           clientId: client.id,
           qboTxnId: entity.id,
           vendorName,
           amount,
-          txnDate: new Date(),
+          txnDate,
           suggestedCategory: result.suggestedCategory,
           confidence: result.confidence,
           reasoning: result.reasoning,
           status: meetsAutoPostThreshold(result.confidence) ? "AUTO_POSTED" : "PENDING",
           autoPosted: meetsAutoPostThreshold(result.confidence),
+        },
+        update: {
+          vendorName,
+          amount,
+          txnDate,
+          suggestedCategory: result.suggestedCategory,
+          confidence: result.confidence,
+          reasoning: result.reasoning,
         },
       });
     }

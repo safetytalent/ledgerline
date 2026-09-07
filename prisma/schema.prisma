@@ -64,7 +64,7 @@ model Transaction {
   id              String    @id @default(cuid())
   client          Client    @relation(fields: [clientId], references: [id])
   clientId        String
-  qboTxnId        String
+  qboTxnId        String    @unique
   vendorName      String
   amount          Decimal
   txnDate         DateTime

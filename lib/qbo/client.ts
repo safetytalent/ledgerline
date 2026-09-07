@@ -81,10 +81,55 @@ export async function refreshAccessToken(refreshToken: string) {
 }
 
 /**
- * Pull bank/credit-card transactions for a company (realmId) since a
- * given date. This hits QBO's Purchase/Deposit query endpoints — real
- * implementation should paginate; this is the Phase 1 starting shape.
+ * Fetch one specific transaction by its QBO entity type + id — this is
+ * what the webhook calls to replace the placeholder vendor/amount with
+ * real data. `entityType` comes straight from the webhook payload
+ * (e.g. "Purchase", "Bill", "Deposit").
  */
+export async function fetchEntityById(
+  realmId: string,
+  accessToken: string,
+  entityType: string,
+  id: string
+) {
+  const query = encodeURIComponent(`select * from ${entityType} where Id = '${id}'`);
+  const res = await fetch(`${API_BASE}/v3/company/${realmId}/query?query=${query}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`QBO ${entityType} fetch failed: ${res.status} ${await res.text()}`);
+  }
+
+  const data = await res.json();
+  return data?.QueryResponse?.[entityType]?.[0] ?? null;
+}
+
+/**
+ * Extracts { vendorName, amount, txnDate } from a raw QBO entity.
+ * Purchase and Bill are the two transaction types this handles fully
+ * (the common case: a vendor payment or bill needing categorization).
+ * Other entity types (Deposit, Invoice, etc.) fall back to a generic
+ * label — real support for those is a Phase 2 addition, not silently
+ * guessed at.
+ */
+export function extractTransactionFields(entityType: string, entity: any) {
+  const txnDate = entity?.TxnDate ? new Date(entity.TxnDate) : new Date();
+  const amount = Number(entity?.TotalAmt ?? 0);
+
+  if (entityType === "Purchase" || entityType === "Bill") {
+    const vendorName =
+      entity?.EntityRef?.name ?? entity?.VendorRef?.name ?? "Unknown Vendor";
+    return { vendorName, amount, txnDate };
+  }
+
+  return { vendorName: `${entityType} (unsupported type)`, amount, txnDate };
+}
+
+
 export async function fetchRecentTransactions(realmId: string, accessToken: string) {
   const query = encodeURIComponent(
     "select * from Purchase where MetaData.LastUpdatedTime > '2024-01-01' maxresults 100"
