@@ -50,6 +50,7 @@ model Client {
   transactions  Transaction[]
   corrections   CorrectionMemory[]
   closeTasks    CloseTask[]
+  documents     Document[]
   // Which of the firm's service lines this client is signed up for —
   // values come from lib/services.ts (the 50-item service catalog).
   // Only "Monthly Bookkeeping" is software-automated today (the
@@ -149,4 +150,16 @@ model CloseTask {
   doneAt    DateTime?
 
   @@unique([clientId, month, taskLabel])
+}
+
+// Real uploaded files, stored in Supabase Storage under the
+// "documents" bucket. This row just tracks metadata — the actual
+// file bytes live in Storage at `storagePath`.
+model Document {
+  id          String   @id @default(cuid())
+  client      Client   @relation(fields: [clientId], references: [id])
+  clientId    String
+  fileName    String
+  storagePath String
+  uploadedAt  DateTime @default(now())
 }

@@ -10,7 +10,7 @@ const NAV_SECTIONS = [
       { name: "Review Queue", href: "/dashboard" },
       { name: "Client Books", href: "/dashboard/clients" },
       { name: "Close Checklist", href: "/dashboard/close-checklist" },
-      { name: "Documents", href: null },
+      { name: "Documents", href: "/dashboard/documents" },
     ],
   },
   {
@@ -24,8 +24,8 @@ const NAV_SECTIONS = [
   {
     label: "Franchise",
     items: [
-      { name: "Network Scorecard", href: null },
-      { name: "Royalty Reporting", href: null },
+      { name: "Network Scorecard", href: "/dashboard/network-scorecard" },
+      { name: "Royalty Reporting", href: "/dashboard/royalty-reporting" },
     ],
   },
 ];
