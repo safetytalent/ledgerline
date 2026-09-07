@@ -1,6 +1,7 @@
 import SideNav from "@/components/nav/SideNav";
 import AgentActivityPanel from "@/components/agent/AgentActivityPanel";
 import ServiceEditor from "@/components/clients/ServiceEditor";
+import AddClientButton from "@/components/clients/AddClientButton";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,7 @@ export default async function ClientsPage() {
               Every client connected to this account
             </p>
           </div>
+          <AddClientButton />
         </div>
 
         <div className="px-8 py-5">
