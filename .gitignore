@@ -1,1 +1,7 @@
-ledgerline-*.txt 
+node_modules/
+.next/
+.env.local
+.env
+*.log
+.DS_Store
+ledgerline-*.txt
