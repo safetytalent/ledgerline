@@ -54,7 +54,14 @@ export default async function TaxPrepPage() {
                   ) : (
                     <>
                       {ISSUES_K1[entityType] && (
-                        <OwnersManager clientId={c.id} owners={c.owners} />
+                        <OwnersManager
+                          clientId={c.id}
+                          owners={c.owners.map((o: (typeof c.owners)[number]) => ({
+                            id: o.id,
+                            name: o.name,
+                            ownershipPercent: Number(o.ownershipPercent),
+                          }))}
+                        />
                       )}
 
                                 <div className="mt-3">
