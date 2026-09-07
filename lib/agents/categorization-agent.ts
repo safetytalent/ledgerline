@@ -23,7 +23,7 @@ export async function categorizeTransaction(
   vendorName: string,
   amount: number,
   lookupMemory: (clientId: string, vendorName: string) => Promise<CorrectionMemoryEntry | null>
-): Promise<Pick<AgentTransaction, "suggestedCategory" | "confidence" | "reasoning" | "autoPosted">> {
+): Promise<Pick<AgentTransaction, "suggestedCategory" | "confidence" | "reasoning">> {
   const memory = await lookupMemory(clientId, vendorName);
 
   if (memory && memory.timesConfirmed >= 2) {
@@ -33,7 +33,6 @@ export async function categorizeTransaction(
         : memory.correctCategory,
       confidence: Math.min(99, 80 + memory.timesConfirmed * 4),
       reasoning: `Matches ${memory.timesConfirmed} prior confirmed codings for this vendor on this client.`,
-      autoPosted: true,
     };
   }
 
@@ -42,7 +41,6 @@ export async function categorizeTransaction(
       suggestedCategory: memory.correctCategory,
       confidence: 60,
       reasoning: `Corrected once before to this category — confirming again will lock it in for auto-posting.`,
-      autoPosted: false,
     };
   }
 
@@ -52,7 +50,6 @@ export async function categorizeTransaction(
     suggestedCategory: "Uncategorized",
     confidence: 30,
     reasoning: `First time seeing this vendor for this client — no rule or memory match yet.`,
-    autoPosted: false,
   };
 }
 

@@ -120,8 +120,9 @@ export async function POST(req: NextRequest) {
       };
 
       const result = await categorizeTransaction(client.id, vendorName, amount, lookupMemory);
+      const autoPost = meetsAutoPostThreshold(result.confidence);
 
-      await prisma.transaction.upsert({
+      const txn = await prisma.transaction.upsert({
         where: { qboTxnId: entity.id },
         create: {
           clientId: client.id,
@@ -130,20 +131,28 @@ export async function POST(req: NextRequest) {
           amount,
           txnDate,
           suggestedCategory: result.suggestedCategory,
-          confidence: result.confidence,
+          confidenceScore: result.confidence,
           reasoning: result.reasoning,
-          status: meetsAutoPostThreshold(result.confidence) ? "AUTO_POSTED" : "PENDING",
-          autoPosted: meetsAutoPostThreshold(result.confidence),
+          reviewStatus: autoPost ? "AUTO_POSTED" : "PENDING_REVIEW",
         },
         update: {
           vendorName,
           amount,
           txnDate,
           suggestedCategory: result.suggestedCategory,
-          confidence: result.confidence,
+          confidenceScore: result.confidence,
           reasoning: result.reasoning,
         },
       });
+
+      // Phase A: every auto-post is still a logged approval event —
+      // the system is the actor, but it's recorded the same way a
+      // human approval would be, for the audit trail.
+      if (autoPost) {
+        await prisma.approval.create({
+          data: { userId: "system", actionType: "POST", recordId: txn.id },
+        });
+      }
     }
   }
 

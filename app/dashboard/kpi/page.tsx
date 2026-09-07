@@ -8,10 +8,10 @@ export default async function KpiDashboardsPage() {
     prisma.transaction.groupBy({
       by: ["clientId"],
       _count: { _all: true },
-      _avg: { confidence: true },
+      _avg: { confidenceScore: true },
     }),
     prisma.transaction.groupBy({
-      by: ["status"],
+      by: ["reviewStatus"],
       _count: { _all: true },
     }),
     prisma.transaction.aggregate({ _sum: { amount: true } }),
@@ -24,7 +24,7 @@ export default async function KpiDashboardsPage() {
   const clientName = (id: string) => clients.find((c: (typeof clients)[number]) => c.id === id)?.name ?? id;
 
   const totalTxns = statusCounts.reduce((sum: number, s: (typeof statusCounts)[number]) => sum + s._count._all, 0);
-  const autoPosted = statusCounts.find((s: (typeof statusCounts)[number]) => s.status === "AUTO_POSTED")?._count._all ?? 0;
+  const autoPosted = statusCounts.find((s: (typeof statusCounts)[number]) => s.reviewStatus === "AUTO_POSTED")?._count._all ?? 0;
   const autoRate = totalTxns > 0 ? ((autoPosted / totalTxns) * 100).toFixed(1) : "0.0";
 
   return (
@@ -66,7 +66,7 @@ export default async function KpiDashboardsPage() {
               <tr className="text-left text-[11.5px] uppercase tracking-wide text-[#6B675E] border-b border-line">
                 <th className="pb-2 font-medium">Client</th>
                 <th className="pb-2 font-medium">Transactions</th>
-                <th className="pb-2 font-medium">Avg. confidence</th>
+                <th className="pb-2 font-medium">Avg. confidence score</th>
               </tr>
             </thead>
             <tbody>
@@ -75,7 +75,7 @@ export default async function KpiDashboardsPage() {
                   <td className="py-2.5 font-medium">{clientName(c.clientId)}</td>
                   <td className="py-2.5 font-mono">{c._count._all}</td>
                   <td className="py-2.5 font-mono">
-                    {c._avg.confidence ? Math.round(c._avg.confidence) : 0}%
+                    {c._avg.confidenceScore ? Math.round(c._avg.confidenceScore) : 0}%
                   </td>
                 </tr>
               ))}

@@ -1,10 +1,8 @@
-export type TxnStatus =
-  | "PENDING"
+export type ReviewStatus =
   | "AUTO_POSTED"
-  | "CONFIRMED"
-  | "RECODED"
-  | "FLAGGED"
-  | "ESCALATED";
+  | "PENDING_REVIEW"
+  | "APPROVED"
+  | "REJECTED";
 
 export interface AgentTransaction {
   id: string;
@@ -14,8 +12,8 @@ export interface AgentTransaction {
   suggestedCategory: string;
   confidence: number; // 0-100
   reasoning: string;
-  status: TxnStatus;
-  autoPosted: boolean;
+  reviewStatus: ReviewStatus;
+  escalatedToClient: boolean;
 }
 
 export interface CorrectionMemoryEntry {

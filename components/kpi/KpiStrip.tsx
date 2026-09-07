@@ -2,9 +2,9 @@ import { prisma } from "@/lib/db";
 
 export default async function KpiStrip() {
   const [pendingCount, totalCount, autoPostedCount] = await Promise.all([
-    prisma.transaction.count({ where: { status: "PENDING" } }),
+    prisma.transaction.count({ where: { reviewStatus: "PENDING_REVIEW" } }),
     prisma.transaction.count(),
-    prisma.transaction.count({ where: { autoPosted: true } }),
+    prisma.transaction.count({ where: { reviewStatus: "AUTO_POSTED" } }),
   ]);
 
   const autoRate = totalCount > 0 ? ((autoPostedCount / totalCount) * 100).toFixed(1) : "0.0";

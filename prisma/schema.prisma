@@ -112,30 +112,32 @@ model QboConnection {
 }
 
 model Transaction {
-  id              String    @id @default(cuid())
-  client          Client    @relation(fields: [clientId], references: [id])
+  id              String       @id @default(cuid())
+  client          Client       @relation(fields: [clientId], references: [id])
   clientId        String
-  qboTxnId        String    @unique
+  qboTxnId        String       @unique
   vendorName      String
   amount          Decimal
   txnDate         DateTime
   suggestedCategory String?
-  confidence      Int       // 0-100
-  reasoning       String?   // human-readable explanation shown in the UI
-  status          TxnStatus @default(PENDING)
-  autoPosted      Boolean   @default(false)
+  confidenceScore Int          @default(0) // 0-100 — Phase A spec field name
+  reasoning       String?      // human-readable explanation shown in the UI
+  reviewStatus    ReviewStatus @default(PENDING_REVIEW)
+  // Not part of the Phase A spec's 4-value enum — kept separate because
+  // "escalated to client for clarification" is a real, distinct state
+  // the existing Agent Activity feed depends on, and collapsing it into
+  // pending_review would silently lose that information.
+  escalatedToClient Boolean    @default(false)
   finalCategory   String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @default(now()) @updatedAt
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @default(now()) @updatedAt
 }
 
-enum TxnStatus {
-  PENDING
+enum ReviewStatus {
   AUTO_POSTED
-  CONFIRMED
-  RECODED
-  FLAGGED
-  ESCALATED
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
 }
 
 // The per-client "learning" table — corrections feed future confidence
@@ -191,4 +193,38 @@ model Document {
   // what's still missing. Null means "uploaded but not yet categorized."
   docType     String?
   uploadedAt  DateTime @default(now())
+}
+
+// Phase A: logs every action that required a human's explicit
+// approval — posting, e-signing, or e-filing. This is the audit
+// trail that proves a named human approved before anything final
+// happened; nothing in this system bypasses writing a row here.
+model Approval {
+  id         String       @id @default(cuid())
+  userId     String       // Supabase auth.users.id of the approving human
+  actionType ActionType
+  recordId   String       // id of the Transaction/Document/etc. being approved
+  sessionRef String?      // session or IP reference, for the audit trail
+  createdAt  DateTime     @default(now())
+}
+
+enum ActionType {
+  POST
+  ESIGN
+  EFILE
+}
+
+// Phase A: every correction a human makes in the review queue writes
+// here — a full history, distinct from CorrectionMemory (which only
+// keeps the current best guess per vendor). This is the raw material
+// the CEO/Operations Agent later summarizes into proposed rule
+// changes — it never edits anything itself.
+model LearningLog {
+  id         String   @id @default(cuid())
+  userId     String   // who made the correction
+  recordId   String   // id of the Transaction being corrected
+  fromValue  String?  // what it was before
+  toValue    String?  // what it was corrected to
+  reasonCode String?  // e.g. "wrong_category", "wrong_vendor_match"
+  createdAt  DateTime @default(now())
 }

@@ -10,7 +10,7 @@ export default async function NetworkScorecardPage() {
         include: {
           subscription: true,
           _count: { select: { transactions: true } },
-          transactions: { select: { status: true } },
+          transactions: { select: { reviewStatus: true } },
         },
       },
     },
@@ -43,7 +43,7 @@ export default async function NetworkScorecardPage() {
             <tbody>
               {locations.map((loc: Loc) => {
                 const allTxns = loc.clients.flatMap((c: (typeof loc.clients)[number]) => c.transactions);
-                const autoCount = allTxns.filter((t: (typeof allTxns)[number]) => t.status === "AUTO_POSTED").length;
+                const autoCount = allTxns.filter((t: (typeof allTxns)[number]) => t.reviewStatus === "AUTO_POSTED").length;
                 const rate = allTxns.length > 0 ? ((autoCount / allTxns.length) * 100).toFixed(1) : "0.0";
                 const activeSubs = loc.clients.filter(
                   (c: (typeof loc.clients)[number]) => c.subscription?.status === "active"

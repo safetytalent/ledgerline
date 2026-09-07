@@ -8,8 +8,8 @@ function formatTxnDate(d: Date): string {
 
 export default async function ReviewQueue() {
   const rows = await prisma.transaction.findMany({
-    where: { status: { in: ["PENDING", "AUTO_POSTED"] } },
-    orderBy: { confidence: "asc" },
+    where: { reviewStatus: { in: ["PENDING_REVIEW", "AUTO_POSTED"] } },
+    orderBy: { confidenceScore: "asc" },
     take: 25,
   });
 
@@ -19,10 +19,10 @@ export default async function ReviewQueue() {
     amount: Number(t.amount),
     txnDate: formatTxnDate(t.txnDate),
     suggestedCategory: t.suggestedCategory ?? "Uncategorized",
-    confidence: t.confidence,
+    confidence: t.confidenceScore,
     reasoning: t.reasoning ?? "",
-    status: t.status,
-    autoPosted: t.autoPosted,
+    reviewStatus: t.reviewStatus,
+    escalatedToClient: t.escalatedToClient,
   }));
 
   return (

@@ -20,7 +20,7 @@ export default async function AgentActivityPage() {
       include: { client: { select: { name: true } } },
     }),
     prisma.transaction.findMany({
-      where: { status: "ESCALATED" },
+      where: { escalatedToClient: true },
       orderBy: { updatedAt: "desc" },
       take: 15,
       include: { client: { select: { name: true } } },
