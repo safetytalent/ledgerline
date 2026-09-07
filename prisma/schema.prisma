@@ -46,9 +46,26 @@ model Client {
   name          String
   qboRealmId    String?               // QuickBooks company connection id
   qboTokens     QboConnection?
+  subscription  Subscription?
   transactions  Transaction[]
   corrections   CorrectionMemory[]
   createdAt     DateTime              @default(now())
+}
+
+// Tracks whether a client is a paying subscriber. One row per client,
+// kept in sync with Stripe via the webhook in
+// app/api/billing/webhook/route.ts — never trust the frontend's idea
+// of subscription status, only what Stripe confirms.
+model Subscription {
+  id                   String   @id @default(cuid())
+  client               Client   @relation(fields: [clientId], references: [id])
+  clientId             String   @unique
+  stripeCustomerId     String   @unique
+  stripeSubscriptionId String?  @unique
+  status               String   // mirrors Stripe's status: "active", "past_due", "canceled", etc.
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 }
 
 model QboConnection {

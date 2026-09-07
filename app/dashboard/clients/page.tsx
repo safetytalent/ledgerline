@@ -8,6 +8,7 @@ export default async function ClientsPage() {
   const clients = await prisma.client.findMany({
     include: {
       qboTokens: true,
+      subscription: true,
       _count: { select: { transactions: true } },
     },
     orderBy: { createdAt: "asc" },
@@ -38,6 +39,7 @@ export default async function ClientsPage() {
                 <tr className="text-left text-[11.5px] uppercase tracking-wide text-[#6B675E] border-b border-line">
                   <th className="pb-2 font-medium">Client</th>
                   <th className="pb-2 font-medium">QuickBooks status</th>
+                  <th className="pb-2 font-medium">Subscription</th>
                   <th className="pb-2 font-medium">Transactions on file</th>
                 </tr>
               </thead>
@@ -58,12 +60,27 @@ export default async function ClientsPage() {
                         </span>
                       )}
                     </td>
+                    <td className="py-3">
+                      {c.subscription?.status === "active" ? (
+                        <span className="inline-flex items-center gap-1.5 text-teal">
+                          <span className="w-1.5 h-1.5 bg-teal rounded-full" />
+                          Active
+                        </span>
+                      ) : (
+                        <a
+                          href={`/api/billing/checkout?clientId=${c.id}`}
+                          className="text-brass underline text-[12.5px]"
+                        >
+                          Start subscription
+                        </a>
+                      )}
+                    </td>
                     <td className="py-3 font-mono">{c._count.transactions}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          )}
+         )}
         </div>
       </div>
 
