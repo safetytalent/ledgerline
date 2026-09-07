@@ -60,10 +60,19 @@ export async function POST(req: NextRequest) {
       const vendorName = "PLACEHOLDER_VENDOR";
       const amount = 0;
 
-      const lookupMemory = (clientId: string, vendor: string) =>
-        prisma.correctionMemory.findUnique({
+      const lookupMemory = async (clientId: string, vendor: string) => {
+        const row = await prisma.correctionMemory.findUnique({
           where: { clientId_vendorName: { clientId, vendorName: vendor } },
         });
+        if (!row) return null;
+        return {
+          clientId: row.clientId,
+          vendorName: row.vendorName,
+          correctCategory: row.correctCategory,
+          jobOrCostCode: row.jobOrCostCode ?? undefined,
+          timesConfirmed: row.timesConfirmed,
+        };
+      };
 
       const result = await categorizeTransaction(client.id, vendorName, amount, lookupMemory);
 
