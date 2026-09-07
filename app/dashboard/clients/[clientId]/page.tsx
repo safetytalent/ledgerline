@@ -129,7 +129,16 @@ export default async function ClientDashboardPage({
               </div>
             ) : (
               <>
-                {ISSUES_K1[entityType] && <OwnersManager clientId={client.id} owners={client.owners} />}
+                {ISSUES_K1[entityType] && (
+                  <OwnersManager
+                    clientId={client.id}
+                    owners={client.owners.map((o: (typeof client.owners)[number]) => ({
+                      id: o.id,
+                      name: o.name,
+                      ownershipPercent: Number(o.ownershipPercent),
+                    }))}
+                  />
+                )}
                 <div className="text-[11px] uppercase tracking-wide text-[#6B675E] font-semibold mb-1.5 mt-3">
                   Required tax documents
                 </div>
