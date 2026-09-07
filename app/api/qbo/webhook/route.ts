@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { categorizeTransaction, meetsAutoPostThreshold } from "@/lib/agents/categorization-agent";
+import { touchesRuleTwoCategory } from "@/lib/agents/rule2-check";
 import { fetchEntityById, extractTransactionFields, refreshAccessToken } from "@/lib/qbo/client";
 import { encryptSecret, decryptSecret } from "@/lib/crypto";
 
@@ -120,7 +121,12 @@ export async function POST(req: NextRequest) {
       };
 
       const result = await categorizeTransaction(client.id, vendorName, amount, lookupMemory);
-      const autoPost = meetsAutoPostThreshold(result.confidence);
+      // Rule 2, no exceptions: equity, owner draws, loans, payroll
+      // liabilities, and tax filings never auto-post, no matter how
+      // confident the agent is.
+      const autoPost =
+        meetsAutoPostThreshold(result.confidence) &&
+        !touchesRuleTwoCategory(result.suggestedCategory);
 
       const txn = await prisma.transaction.upsert({
         where: { qboTxnId: entity.id },
