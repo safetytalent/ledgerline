@@ -1,28 +1,38 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
 const NAV_SECTIONS = [
   {
     label: "Work",
     items: [
-      { name: "Review Queue", count: 18, active: true },
-      { name: "Client Books", count: 42 },
-      { name: "Close Checklist", count: 6 },
-      { name: "Documents" },
+      { name: "Review Queue", href: "/dashboard" },
+      { name: "Client Books", href: "/dashboard/clients" },
+      { name: "Close Checklist", href: null },
+      { name: "Documents", href: null },
     ],
   },
   {
     label: "Intelligence",
     items: [
-      { name: "Agent Activity" },
-      { name: "Anomalies", count: 2 },
-      { name: "KPI Dashboards" },
+      { name: "Agent Activity", href: null },
+      { name: "Anomalies", href: null },
+      { name: "KPI Dashboards", href: null },
     ],
   },
   {
     label: "Franchise",
-    items: [{ name: "Network Scorecard" }, { name: "Royalty Reporting" }],
+    items: [
+      { name: "Network Scorecard", href: null },
+      { name: "Royalty Reporting", href: null },
+    ],
   },
 ];
 
 export default function SideNav() {
+  const pathname = usePathname();
+
   return (
     <div className="bg-ink text-[#DDE3F0] flex flex-col p-5 h-full">
       <div className="font-display text-xl font-semibold text-white mb-1">Ledgerline</div>
@@ -33,23 +43,37 @@ export default function SideNav() {
           <div className="text-[10.5px] uppercase tracking-wide text-[#5E6994] mt-5 mb-2 ml-2">
             {section.label}
           </div>
-          {section.items.map((item) => (
-            <div
-              key={item.name}
-              className={`px-2.5 py-2 rounded-sm text-[13.5px] mb-0.5 flex justify-between items-center cursor-pointer ${
-                item.active
-                  ? "bg-ink2 text-white border-l-2 border-brass pl-2"
-                  : "text-[#B7C0DC]"
-              }`}
-            >
-              {item.name}
-              {item.count !== undefined && (
-                <span className={`font-mono text-[11px] ${item.active ? "text-brass" : "text-[#7A85AC]"}`}>
-                  {item.count}
-                </span>
-              )}
-            </div>
-          ))}
+          {section.items.map((item) => {
+            const isActive = item.href && pathname === item.href;
+
+            if (!item.href) {
+              // Not built yet — shown for context, but explicitly
+              // non-interactive rather than pretending it works.
+              return (
+                <div
+                  key={item.name}
+                  className="px-2.5 py-2 rounded-sm text-[13.5px] mb-0.5 flex justify-between items-center text-[#5E6994] cursor-default"
+                >
+                  {item.name}
+                  <span className="font-mono text-[9.5px] uppercase tracking-wide">Soon</span>
+                </div>
+              );
+            }
+
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={`px-2.5 py-2 rounded-sm text-[13.5px] mb-0.5 flex justify-between items-center cursor-pointer ${
+                  isActive
+                    ? "bg-ink2 text-white border-l-2 border-brass pl-2"
+                    : "text-[#B7C0DC] hover:bg-ink2/50"
+                }`}
+              >
+                {item.name}
+              </Link>
+            );
+          })}
         </div>
       ))}
 
