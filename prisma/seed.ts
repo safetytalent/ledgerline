@@ -40,11 +40,10 @@ async function main() {
         amount: 4280,
         txnDate: new Date("2026-09-03"),
         suggestedCategory: "Job 4412",
-        confidence: 41,
+        confidenceScore: 41,
         reasoning:
           "First transaction from this vendor for Sierra Construction. Similar amount/timing to prior Job 4412 entries, but no PO on file to confirm.",
-        status: "PENDING",
-        autoPosted: false,
+        reviewStatus: "PENDING_REVIEW",
       },
       {
         clientId: clientB.id,
@@ -53,11 +52,10 @@ async function main() {
         amount: 12500,
         txnDate: new Date("2026-09-02"),
         suggestedCategory: "Estimated Tax Payment",
-        confidence: 58,
+        confidenceScore: 58,
         reasoning:
           "Amount is 30% higher than this client's typical quarterly estimate. Flagged for confirmation rather than auto-post.",
-        status: "PENDING",
-        autoPosted: false,
+        reviewStatus: "PENDING_REVIEW",
       },
     ],
   });
