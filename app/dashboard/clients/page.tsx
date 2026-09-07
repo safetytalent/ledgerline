@@ -1,6 +1,7 @@
 import SideNav from "@/components/nav/SideNav";
 import AgentActivityPanel from "@/components/agent/AgentActivityPanel";
 import ServiceEditor from "@/components/clients/ServiceEditor";
+import SyncNowButton from "@/components/clients/SyncNowButton";
 import AddClientButton from "@/components/clients/AddClientButton";
 import { prisma } from "@/lib/db";
 
@@ -53,10 +54,13 @@ export default async function ClientsPage() {
                     <td className="py-3 font-medium">{c.name}</td>
                     <td className="py-3">
                       {c.qboTokens ? (
-                        <span className="inline-flex items-center gap-1.5 text-teal">
-                          <span className="w-1.5 h-1.5 bg-teal rounded-full" />
-                          Connected
-                        </span>
+                        <div>
+                          <span className="inline-flex items-center gap-1.5 text-teal mb-1">
+                            <span className="w-1.5 h-1.5 bg-teal rounded-full" />
+                            Connected
+                          </span>
+                          <SyncNowButton clientId={c.id} />
+                        </div>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 text-[#6B675E]">
                           <span className="w-1.5 h-1.5 bg-[#6B675E] rounded-full" />

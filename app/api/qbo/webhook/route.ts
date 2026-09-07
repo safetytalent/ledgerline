@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
-import { categorizeTransaction, meetsAutoPostThreshold } from "@/lib/agents/categorization-agent";
-import { touchesRuleTwoCategory } from "@/lib/agents/rule2-check";
-import { fetchEntityById, extractTransactionFields, refreshAccessToken } from "@/lib/qbo/client";
-import { encryptSecret, decryptSecret } from "@/lib/crypto";
+import { processQboEntity } from "@/lib/agents/process-transaction";
+import { getValidAccessToken } from "@/lib/qbo/access-token";
 
 /**
  * POST /api/qbo/webhook
@@ -13,17 +11,9 @@ import { encryptSecret, decryptSecret } from "@/lib/crypto";
  * transaction). The `intuit-signature` header is verified against
  * QBO_WEBHOOK_VERIFIER_TOKEN before the payload is trusted.
  *
- * Flow:
- *   1. For each changed transaction, get a valid access token
- *      (refreshing it first if it's expired).
- *   2. Pull the real transaction from QBO (real vendor/amount/date —
- *      no more placeholder data).
- *   3. Run it through the categorization agent.
- *   4. Auto-post or drop into the review queue based on confidence.
- *
- * Handles Purchase and Bill entity types fully. Other types (Deposit,
- * Invoice, etc.) are recorded with a generic label rather than guessed
- * at — see extractTransactionFields in lib/qbo/client.ts.
+ * The actual categorization/Rule-2/auto-post/audit-log pipeline lives
+ * in lib/agents/process-transaction.ts — shared with the pull-sync
+ * endpoint at /api/qbo/sync, so there's one decision path, not two.
  */
 function isValidIntuitSignature(rawBody: string, signatureHeader: string | null): boolean {
   const verifierToken = process.env.QBO_WEBHOOK_VERIFIER_TOKEN;
@@ -40,34 +30,6 @@ function isValidIntuitSignature(rawBody: string, signatureHeader: string | null)
   const expectedBuf = Buffer.from(expected);
   if (sigBuf.length !== expectedBuf.length) return false;
   return crypto.timingSafeEqual(sigBuf, expectedBuf);
-}
-
-/**
- * Returns a valid, decrypted access token for a client — refreshing
- * and re-saving it first if the stored one has expired. QBO access
- * tokens are short-lived (about 1 hour), so this will run often.
- */
-async function getValidAccessToken(clientId: string): Promise<string | null> {
-  const conn = await prisma.qboConnection.findUnique({ where: { clientId } });
-  if (!conn) return null;
-
-  if (conn.expiresAt > new Date()) {
-    return decryptSecret(conn.accessToken);
-  }
-
-  const refreshToken = decryptSecret(conn.refreshToken);
-  const tokens = await refreshAccessToken(refreshToken);
-
-  await prisma.qboConnection.update({
-    where: { clientId },
-    data: {
-      accessToken: encryptSecret(tokens.access_token),
-      refreshToken: encryptSecret(tokens.refresh_token),
-      expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-    },
-  });
-
-  return tokens.access_token;
 }
 
 export async function POST(req: NextRequest) {
@@ -90,75 +52,7 @@ export async function POST(req: NextRequest) {
     if (!accessToken) continue; // no connection on file for this client
 
     for (const entity of event.dataChangeEvent?.entities ?? []) {
-      const entityType = entity.name; // e.g. "Purchase", "Bill", "Deposit"
-
-      let vendorName: string;
-      let amount: number;
-      let txnDate: Date;
-
-      try {
-        const raw = await fetchEntityById(realmId, accessToken, entityType, entity.id);
-        if (!raw) continue;
-        ({ vendorName, amount, txnDate } = extractTransactionFields(entityType, raw));
-      } catch {
-        // If QBO's API call fails for this one entity, skip it rather
-        // than saving a fabricated placeholder row.
-        continue;
-      }
-
-      const lookupMemory = async (clientId: string, vendor: string) => {
-        const row = await prisma.correctionMemory.findUnique({
-          where: { clientId_vendorName: { clientId, vendorName: vendor } },
-        });
-        if (!row) return null;
-        return {
-          clientId: row.clientId,
-          vendorName: row.vendorName,
-          correctCategory: row.correctCategory,
-          jobOrCostCode: row.jobOrCostCode ?? undefined,
-          timesConfirmed: row.timesConfirmed,
-        };
-      };
-
-      const result = await categorizeTransaction(client.id, vendorName, amount, lookupMemory);
-      // Rule 2, no exceptions: equity, owner draws, loans, payroll
-      // liabilities, and tax filings never auto-post, no matter how
-      // confident the agent is.
-      const autoPost =
-        meetsAutoPostThreshold(result.confidence) &&
-        !touchesRuleTwoCategory(result.suggestedCategory);
-
-      const txn = await prisma.transaction.upsert({
-        where: { qboTxnId: entity.id },
-        create: {
-          clientId: client.id,
-          qboTxnId: entity.id,
-          vendorName,
-          amount,
-          txnDate,
-          suggestedCategory: result.suggestedCategory,
-          confidenceScore: result.confidence,
-          reasoning: result.reasoning,
-          reviewStatus: autoPost ? "AUTO_POSTED" : "PENDING_REVIEW",
-        },
-        update: {
-          vendorName,
-          amount,
-          txnDate,
-          suggestedCategory: result.suggestedCategory,
-          confidenceScore: result.confidence,
-          reasoning: result.reasoning,
-        },
-      });
-
-      // Phase A: every auto-post is still a logged approval event —
-      // the system is the actor, but it's recorded the same way a
-      // human approval would be, for the audit trail.
-      if (autoPost) {
-        await prisma.approval.create({
-          data: { userId: "system", actionType: "POST", recordId: txn.id },
-        });
-      }
+      await processQboEntity(client.id, realmId, accessToken, entity.name, entity.id);
     }
   }
 
