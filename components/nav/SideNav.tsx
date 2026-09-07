@@ -9,16 +9,16 @@ const NAV_SECTIONS = [
     items: [
       { name: "Review Queue", href: "/dashboard" },
       { name: "Client Books", href: "/dashboard/clients" },
-      { name: "Close Checklist", href: null },
+      { name: "Close Checklist", href: "/dashboard/close-checklist" },
       { name: "Documents", href: null },
     ],
   },
   {
     label: "Intelligence",
     items: [
-      { name: "Agent Activity", href: null },
-      { name: "Anomalies", href: null },
-      { name: "KPI Dashboards", href: null },
+      { name: "Agent Activity", href: "/dashboard/agent-activity" },
+      { name: "Anomalies", href: "/dashboard/anomalies" },
+      { name: "KPI Dashboards", href: "/dashboard/kpi" },
     ],
   },
   {
