@@ -55,9 +55,11 @@ export async function retryExtraction(documentId: string) {
 /**
  * Reads every document for a client that hasn't been successfully
  * read yet (NOT_EXTRACTED — usually because it was uploaded before
- * this feature existed — or FAILED). Runs them one at a time so a
- * bookkeeper doesn't have to click "read now" on every single file
- * after a bulk upload.
+ * this feature existed — or FAILED). Fires them all at once rather
+ * than waiting on each one in turn — awaiting ten documents
+ * sequentially in a single request risks exceeding the server's
+ * execution time limit and erroring out. Refresh the page after a
+ * few seconds to see each one's status update as it finishes.
  */
 export async function retryAllExtractionsForClient(clientId: string) {
   const stuck = await prisma.document.findMany({
@@ -66,7 +68,7 @@ export async function retryAllExtractionsForClient(clientId: string) {
   });
 
   for (const doc of stuck) {
-    await extractDocumentFields(doc.id);
+    extractDocumentFields(doc.id).catch(() => {});
   }
 
   revalidatePath("/dashboard/documents");
