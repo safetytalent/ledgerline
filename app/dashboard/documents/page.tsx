@@ -1,6 +1,7 @@
 import SideNav from "@/components/nav/SideNav";
 import UploadForm from "@/components/documents/UploadForm";
 import DocumentRow from "@/components/documents/DocumentRow";
+import ReadAllButton from "@/components/documents/ReadAllButton";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -25,11 +26,19 @@ export default async function DocumentsPage() {
           {clients.length === 0 ? (
             <div className="text-[13px] text-[#6B675E] py-8 text-center">No clients yet.</div>
           ) : (
-            clients.map((c: (typeof clients)[number]) => (
+            clients.map((c: (typeof clients)[number]) => {
+              const unreadCount = c.documents.filter(
+                (d: (typeof c.documents)[number]) =>
+                  d.extractionStatus === "NOT_EXTRACTED" || d.extractionStatus === "FAILED"
+              ).length;
+              return (
               <div key={c.id} className="mb-6 max-w-2xl">
                 <div className="flex justify-between items-center mb-2">
                   <h2 className="text-[15px] font-semibold">{c.name}</h2>
-                  <UploadForm clientId={c.id} />
+                  <div className="flex items-center">
+                    <UploadForm clientId={c.id} />
+                    <ReadAllButton clientId={c.id} count={unreadCount} />
+                  </div>
                 </div>
                 {c.documents.length === 0 ? (
                   <div className="text-[12.5px] text-[#6B675E] py-3">No documents uploaded yet.</div>
@@ -61,7 +70,8 @@ export default async function DocumentsPage() {
                   </table>
                 )}
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

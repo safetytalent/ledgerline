@@ -3,6 +3,7 @@ import SideNav from "@/components/nav/SideNav";
 import EntityTypeSelector from "@/components/tax/EntityTypeSelector";
 import OwnersManager from "@/components/tax/OwnersManager";
 import UploadForm from "@/components/documents/UploadForm";
+import ReadAllButton from "@/components/documents/ReadAllButton";
 import DocumentRow from "@/components/documents/DocumentRow";
 import DocTagger from "@/components/tax/DocTagger";
 import SyncNowButton from "@/components/clients/SyncNowButton";
@@ -171,7 +172,18 @@ export default async function ClientDashboardPage({
               <div className="text-[11px] uppercase tracking-wide text-[#6B675E] font-semibold">
                 Documents
               </div>
-              <UploadForm clientId={client.id} />
+              <div className="flex items-center">
+                <UploadForm clientId={client.id} />
+                <ReadAllButton
+                  clientId={client.id}
+                  count={
+                    client.documents.filter(
+                      (d: (typeof client.documents)[number]) =>
+                        d.extractionStatus === "NOT_EXTRACTED" || d.extractionStatus === "FAILED"
+                    ).length
+                  }
+                />
+              </div>
             </div>
             {client.documents.length === 0 ? (
               <div className="text-[12.5px] text-[#6B675E]">No documents uploaded yet.</div>

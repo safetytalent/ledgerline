@@ -53,6 +53,27 @@ export async function retryExtraction(documentId: string) {
 }
 
 /**
+ * Reads every document for a client that hasn't been successfully
+ * read yet (NOT_EXTRACTED — usually because it was uploaded before
+ * this feature existed — or FAILED). Runs them one at a time so a
+ * bookkeeper doesn't have to click "read now" on every single file
+ * after a bulk upload.
+ */
+export async function retryAllExtractionsForClient(clientId: string) {
+  const stuck = await prisma.document.findMany({
+    where: { clientId, extractionStatus: { in: ["NOT_EXTRACTED", "FAILED"] } },
+    select: { id: true },
+  });
+
+  for (const doc of stuck) {
+    await extractDocumentFields(doc.id);
+  }
+
+  revalidatePath("/dashboard/documents");
+  revalidatePath(`/dashboard/clients/${clientId}`);
+}
+
+/**
  * The human checkpoint: a bookkeeper reviews what the Intake Agent
  * read off the document, corrects anything wrong, and confirms it.
  * Only after this call does the document's data count as verified —
