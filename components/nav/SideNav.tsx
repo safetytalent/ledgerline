@@ -17,6 +17,7 @@ const NAV_SECTIONS = [
   {
     label: "Firm oversight",
     items: [
+      { name: "Operations Overview", href: "/dashboard/operations" },
       { name: "Agent Activity", href: "/dashboard/agent-activity" },
       { name: "Anomalies", href: "/dashboard/anomalies" },
       { name: "KPI Dashboards", href: "/dashboard/kpi" },
