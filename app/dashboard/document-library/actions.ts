@@ -82,3 +82,38 @@ export async function sendForESignature(formInstanceId: string) {
 
   revalidatePath("/dashboard/document-library");
 }
+
+/**
+ * Phase K — Rule 1's actual "Approve & File" gate, word for word:
+ * "No agent, under any condition, transmits anything to the IRS or a
+ * state tax authority. E-file and e-signature submission require an
+ * explicit human 'Approve & File' action, tied to a logged-in user ID
+ * and timestamp. Enforce this at the API/database layer — a rejected
+ * call, not just a hidden button." This function IS that enforcement:
+ * it rejects outright if no client ESIGN approval exists on record,
+ * and it never itself calls any IRS API — filing happens outside
+ * Ledgerline (mail, fax, the firm's e-file software, or the IRS's own
+ * Tax Pro Account); this just records that a named human confirmed it
+ * happened, with a timestamp, the same way every other approval here
+ * is recorded.
+ */
+export async function markAsFiled(formInstanceId: string) {
+  const userId = await currentUserId();
+  if (userId === "unknown") {
+    throw new Error("Marking a form as filed requires a signed-in user.");
+  }
+
+  const approvals = await prisma.approval.findMany({ where: { recordId: formInstanceId } });
+  const clientSigned = approvals.some((a: (typeof approvals)[number]) => a.actionType === "ESIGN");
+  if (!clientSigned) {
+    throw new Error(
+      "Rule 1: this form has no client e-signature on record. Filing cannot be marked complete without it — no exceptions, even for auto-filled data."
+    );
+  }
+
+  await prisma.approval.create({
+    data: { userId, actionType: "EFILE", recordId: formInstanceId },
+  });
+
+  revalidatePath("/dashboard/document-library");
+}

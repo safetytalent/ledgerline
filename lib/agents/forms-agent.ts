@@ -107,10 +107,54 @@ async function fill1099Nec(clientId: string, taxYear: string): Promise<FieldRow[
   return fields;
 }
 
+/**
+ * Form 8879 — IRS e-file Signature Authorization. Per current IRS
+ * guidance, this form is NEVER itself transmitted to the IRS — the
+ * ERO (this firm) retains it for 3 years and produces it only if the
+ * IRS specifically asks. What it actually does is authorize the firm
+ * to e-file the underlying return using the taxpayer's PIN. Part I
+ * restates real return figures where we have them; the PIN itself is
+ * always manual — it comes from the client, never generated here.
+ */
+async function fillForm8879(clientId: string, taxYear: string): Promise<FieldRow[]> {
+  const client = await prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+  const draft = await prisma.taxReturnDraft.findUnique({ where: { clientId_taxYear: { clientId, taxYear } } });
+
+  return [
+    recordField("Taxpayer name", client.name),
+    recordField("Taxpayer ID number", client.ein),
+    draft
+      ? { label: "Net income (from draft return)", value: `$${Number(draft.netIncome).toLocaleString()}`, provenance: "record" }
+      : { label: "Net income (from draft return)", value: "", provenance: "manual", empty: true },
+    { label: "Total tax", value: "", provenance: "manual", empty: true },
+    { label: "ERO firm name", value: "Sierra Bookkeeping", provenance: "record" },
+    { label: "Taxpayer PIN (5 digits, not all zeros)", value: "", provenance: "manual", empty: true },
+  ];
+}
+
+/**
+ * Form 2848 — Power of Attorney and Declaration of Representative.
+ * Unlike 8879, this one genuinely is filed with the IRS's Centralized
+ * Authorization File (CAF) unit. Line 3's tax matters/years are
+ * engagement-specific and never guessed — always manual.
+ */
+async function fillForm2848(clientId: string): Promise<FieldRow[]> {
+  const client = await prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+  return [
+    recordField("Taxpayer name", client.name),
+    recordField("Taxpayer ID number", client.ein),
+    recordField("Taxpayer address", client.address),
+    { label: "Representative name", value: "Adrian Sierra, Sierra Bookkeeping", provenance: "record" },
+    { label: "Tax matters (type, form, years)", value: "", provenance: "manual", empty: true },
+  ];
+}
+
 const FILLERS: Record<string, (clientId: string, taxYear: string) => Promise<FieldRow[]>> = {
   "Form W-9 Request": (clientId) => fillW9Request(clientId),
   "Engagement Letter": (clientId) => fillEngagementLetter(clientId),
   "Form 1099-NEC": (clientId, taxYear) => fill1099Nec(clientId, taxYear),
+  "Form 8879": (clientId, taxYear) => fillForm8879(clientId, taxYear),
+  "Form 2848": (clientId) => fillForm2848(clientId),
 };
 
 // The four-category library from the spec, seeded idempotently — safe
@@ -124,8 +168,8 @@ const TEMPLATE_SEED: { name: string; category: string; description: string }[] =
   { name: "Form W-9 Request", category: "IRS_OFFICIAL", description: "Shareable link for a contractor to fill and return" },
   { name: "Form 1099-NEC", category: "IRS_OFFICIAL", description: "Contractor totals over $600, pulled from reconciled payments" },
   { name: "Form W-2", category: "IRS_OFFICIAL", description: "Pulled from payroll register — auto-fill not yet built" },
-  { name: "Form 8879", category: "IRS_OFFICIAL", description: "E-file authorization — requires client e-signature (Phase J/K)" },
-  { name: "Form 2848", category: "IRS_OFFICIAL", description: "Power of attorney — requires client e-signature (Phase J/K)" },
+  { name: "Form 8879", category: "IRS_OFFICIAL", description: "E-file authorization — retained by the firm, never sent to the IRS unless requested; requires client e-signature before filing can be marked complete" },
+  { name: "Form 2848", category: "IRS_OFFICIAL", description: "Power of attorney — actually filed with the IRS CAF unit; requires client e-signature before filing can be marked complete" },
 ];
 
 export async function ensureTemplatesSeeded() {

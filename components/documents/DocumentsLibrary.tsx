@@ -12,7 +12,7 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { sendForPreparerReview, sendForESignature } from "@/app/dashboard/document-library/actions";
+import { sendForPreparerReview, sendForESignature, markAsFiled } from "@/app/dashboard/document-library/actions";
 
 export type Provenance = "qbo" | "record" | "manual";
 
@@ -259,6 +259,7 @@ export default function DocumentsLibrary({
                       Send for e-signature
                     </button>
                     <button
+                      onClick={() => canFile && formInstanceId && markAsFiled(formInstanceId)}
                       disabled={!canFile}
                       className="px-5 py-2.5 text-[13.5px] font-semibold bg-paper2 text-inkFaint border border-line disabled:cursor-not-allowed"
                     >
