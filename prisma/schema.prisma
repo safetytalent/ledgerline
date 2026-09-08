@@ -119,6 +119,11 @@ model Transaction {
   vendorName      String
   amount          Decimal
   txnDate         DateTime
+  // Phase E: which side of the P&L this belongs to. Purchase/Bill are
+  // always EXPENSE; Deposit/Invoice/SalesReceipt are always INCOME.
+  // Defaults to EXPENSE for backward compatibility — every row that
+  // existed before this field was added came from Purchase/Bill only.
+  txnType         TxnType      @default(EXPENSE)
   suggestedCategory String?
   confidenceScore Int          @default(0) // 0-100 — Phase A spec field name
   reasoning       String?      // human-readable explanation shown in the UI
@@ -131,6 +136,11 @@ model Transaction {
   finalCategory   String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @default(now()) @updatedAt
+}
+
+enum TxnType {
+  INCOME
+  EXPENSE
 }
 
 enum ReviewStatus {

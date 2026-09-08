@@ -11,7 +11,7 @@ const API_BASE =
 async function queryEntities(
   realmId: string,
   accessToken: string,
-  entityType: "Purchase" | "Bill"
+  entityType: "Purchase" | "Bill" | "Invoice" | "SalesReceipt" | "Deposit"
 ): Promise<string[]> {
   // Last 90 days — a reasonable pull window; older history isn't
   // usually still awaiting categorization.
@@ -58,20 +58,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No valid QuickBooks connection" }, { status: 400 });
   }
 
-  const [purchaseIds, billIds] = await Promise.all([
+  const [purchaseIds, billIds, invoiceIds, salesReceiptIds, depositIds] = await Promise.all([
     queryEntities(client.qboRealmId, accessToken, "Purchase"),
     queryEntities(client.qboRealmId, accessToken, "Bill"),
+    queryEntities(client.qboRealmId, accessToken, "Invoice"),
+    queryEntities(client.qboRealmId, accessToken, "SalesReceipt"),
+    queryEntities(client.qboRealmId, accessToken, "Deposit"),
   ]);
 
+  const allEntities: { type: "Purchase" | "Bill" | "Invoice" | "SalesReceipt" | "Deposit"; id: string }[] = [
+    ...purchaseIds.map((id) => ({ type: "Purchase" as const, id })),
+    ...billIds.map((id) => ({ type: "Bill" as const, id })),
+    ...invoiceIds.map((id) => ({ type: "Invoice" as const, id })),
+    ...salesReceiptIds.map((id) => ({ type: "SalesReceipt" as const, id })),
+    ...depositIds.map((id) => ({ type: "Deposit" as const, id })),
+  ];
+
   let processed = 0;
-  for (const id of purchaseIds) {
-    const txn = await processQboEntity(clientId, client.qboRealmId, accessToken, "Purchase", id);
-    if (txn) processed++;
-  }
-  for (const id of billIds) {
-    const txn = await processQboEntity(clientId, client.qboRealmId, accessToken, "Bill", id);
+  for (const entity of allEntities) {
+    const txn = await processQboEntity(clientId, client.qboRealmId, accessToken, entity.type, entity.id);
     if (txn) processed++;
   }
 
-  return NextResponse.json({ found: purchaseIds.length + billIds.length, processed });
+  return NextResponse.json({ found: allEntities.length, processed });
 }

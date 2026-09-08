@@ -123,10 +123,23 @@ export function extractTransactionFields(entityType: string, entity: any) {
   if (entityType === "Purchase" || entityType === "Bill") {
     const vendorName =
       entity?.EntityRef?.name ?? entity?.VendorRef?.name ?? "Unknown Vendor";
-    return { vendorName, amount, txnDate };
+    return { vendorName, amount, txnDate, txnType: "EXPENSE" as const };
   }
 
-  return { vendorName: `${entityType} (unsupported type)`, amount, txnDate };
+  if (entityType === "Invoice" || entityType === "SalesReceipt") {
+    const customerName = entity?.CustomerRef?.name ?? "Unknown Customer";
+    return { vendorName: customerName, amount, txnDate, txnType: "INCOME" as const };
+  }
+
+  if (entityType === "Deposit") {
+    // Deposits often don't carry a customer reference — they can be a
+    // lump bank deposit covering several sources. Fall back to a plain
+    // label rather than guessing at who it was from.
+    const source = entity?.Line?.[0]?.DepositLineDetail?.Entity?.name ?? "Bank Deposit";
+    return { vendorName: source, amount, txnDate, txnType: "INCOME" as const };
+  }
+
+  return { vendorName: `${entityType} (unsupported type)`, amount, txnDate, txnType: "EXPENSE" as const };
 }
 
 

@@ -25,11 +25,12 @@ export async function processQboEntity(
   let vendorName: string;
   let amount: number;
   let txnDate: Date;
+  let txnType: "INCOME" | "EXPENSE";
 
   try {
     const raw = await fetchEntityById(realmId, accessToken, entityType, entityId);
     if (!raw) return null;
-    ({ vendorName, amount, txnDate } = extractTransactionFields(entityType, raw));
+    ({ vendorName, amount, txnDate, txnType } = extractTransactionFields(entityType, raw));
   } catch {
     // If QBO's API call fails for this one entity, skip it rather
     // than saving a fabricated placeholder row.
@@ -67,6 +68,7 @@ export async function processQboEntity(
       vendorName,
       amount,
       txnDate,
+      txnType,
       suggestedCategory: result.suggestedCategory,
       confidenceScore: result.confidence,
       reasoning: result.reasoning,
