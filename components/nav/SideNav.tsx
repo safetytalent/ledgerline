@@ -11,6 +11,7 @@ const NAV_SECTIONS = [
       { name: "Work Queue", href: "/dashboard/review-queue" },
       { name: "Close Checklist", href: "/dashboard/close-checklist" },
       { name: "Tax Prep Checklist", href: "/dashboard/tax-prep" },
+      { name: "Tax Return Drafts", href: "/dashboard/tax-returns" },
       { name: "Documents", href: "/dashboard/documents" },
     ],
   },

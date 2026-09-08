@@ -63,6 +63,7 @@ model Client {
   // never C-corps or sole props. Nullable until staff sets it.
   entityType    EntityType?
   owners        ClientOwner[]
+  taxReturnDrafts TaxReturnDraft[]
   createdAt     DateTime              @default(now())
 }
 
@@ -222,6 +223,12 @@ enum ActionType {
   POST
   ESIGN
   EFILE
+  // Phase F: a credentialed preparer's internal sign-off on a draft
+  // return — distinct from ESIGN, which is reserved for the client's
+  // own signature (Phase J/K). Keeping these separate means the audit
+  // trail never conflates "staff reviewed this" with "the client
+  // actually signed it."
+  PREPARER_REVIEW
 }
 
 // Phase A: every correction a human makes in the review queue writes
@@ -237,4 +244,39 @@ model LearningLog {
   toValue    String?  // what it was corrected to
   reasonCode String?  // e.g. "wrong_category", "wrong_vendor_match"
   createdAt  DateTime @default(now())
+}
+
+// Phase F: a draft return's key totals, computed from approved,
+// reconciled financials for one client/tax year. This is a workpaper
+// summary, not an actual IRS form — real form generation belongs to
+// the Document & Forms Library (Phase H onward).
+//
+// Rule 1 hard gate: a draft can NEVER be marked PREPARER_APPROVED
+// except through recordPreparerSignoff() in actions.ts, which
+// requires a named preparer and records who/when. There is no other
+// code path that writes this status — the gate is enforced in the
+// server action itself, not hidden behind a disabled button.
+model TaxReturnDraft {
+  id                  String           @id @default(cuid())
+  client              Client           @relation(fields: [clientId], references: [id])
+  clientId            String
+  taxYear             String           // "2025"
+  totalIncome         Decimal
+  totalExpenses       Decimal
+  netIncome           Decimal
+  status              DraftStatus      @default(DRAFT)
+  // Set only by recordPreparerSignoff() — the Rule 1 gate. Filing
+  // itself (Phase K) requires this to already be non-null before it
+  // will let a form move toward the client e-signature step.
+  preparerApprovedBy  String?
+  preparerApprovedAt  DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @default(now()) @updatedAt
+
+  @@unique([clientId, taxYear])
+}
+
+enum DraftStatus {
+  DRAFT
+  PREPARER_APPROVED
 }
