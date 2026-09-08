@@ -14,12 +14,20 @@ async function currentUserId(): Promise<string> {
 }
 
 /**
- * Generates (or regenerates) a draft return's totals from this
- * client's APPROVED transactions for the given tax year. Always
- * lands in DRAFT status — this function can never itself produce a
- * PREPARER_APPROVED row. Regenerating an already-approved draft
- * resets it back to DRAFT, since the numbers changing means the
- * prior sign-off no longer applies to what's now on the page.
+ * Generates (or regenerates) a draft return's totals for the given
+ * tax year. Income comes from two sources, both required for this
+ * to be complete: whatever's been approved in QuickBooks, plus
+ * whatever income a human has VERIFIED off uploaded documents (a
+ * P&L, W-2s, 1099s — this is what makes the draft real for a
+ * document-only client with no QuickBooks connection at all).
+ * Expenses stay QuickBooks-only for now — classifying an expense
+ * correctly from a plain document read is riskier than income, so
+ * that stays a preparer's manual entry until there's a safer way to
+ * source it. Always lands in DRAFT status — this function can never
+ * itself produce a PREPARER_APPROVED row. Regenerating an
+ * already-approved draft resets it back to DRAFT, since the numbers
+ * changing means the prior sign-off no longer applies to what's now
+ * on the page.
  */
 export async function generateReturnDraft(clientId: string, taxYear: string) {
   const yearStart = new Date(`${taxYear}-01-01`);
@@ -34,12 +42,15 @@ export async function generateReturnDraft(clientId: string, taxYear: string) {
   });
 
   type Txn = (typeof approved)[number];
-  const totalIncome = approved
+  const qboIncome = approved
     .filter((t: Txn) => t.txnType === "INCOME")
     .reduce((sum: number, t: Txn) => sum + Number(t.amount), 0);
   const totalExpenses = approved
     .filter((t: Txn) => t.txnType === "EXPENSE")
     .reduce((sum: number, t: Txn) => sum + Number(t.amount), 0);
+
+  const documentIncome = await totalVerifiedIncome(clientId, taxYear);
+  const totalIncome = qboIncome + documentIncome;
 
   await prisma.taxReturnDraft.upsert({
     where: { clientId_taxYear: { clientId, taxYear } },
