@@ -27,3 +27,32 @@ export async function createClient(name: string) {
   });
   revalidatePath("/dashboard/clients");
 }
+
+/**
+ * Permanently removes a client and everything tied to it — every
+ * transaction, document, tax draft, invoice, and reminder. There is
+ * no undo. Deletes child records first in dependency order since
+ * nothing in this schema cascades automatically; the whole thing
+ * runs as one transaction so it either fully succeeds or leaves
+ * nothing partially deleted.
+ *
+ * Note: this removes the database rows only — any files already
+ * uploaded to Supabase Storage for this client are not deleted here.
+ */
+export async function deleteClient(clientId: string) {
+  await prisma.$transaction([
+    prisma.arReminderDraft.deleteMany({ where: { invoice: { clientId } } }),
+    prisma.invoice.deleteMany({ where: { clientId } }),
+    prisma.formInstance.deleteMany({ where: { clientId } }),
+    prisma.taxReturnDraft.deleteMany({ where: { clientId } }),
+    prisma.clientOwner.deleteMany({ where: { clientId } }),
+    prisma.document.deleteMany({ where: { clientId } }),
+    prisma.closeTask.deleteMany({ where: { clientId } }),
+    prisma.correctionMemory.deleteMany({ where: { clientId } }),
+    prisma.transaction.deleteMany({ where: { clientId } }),
+    prisma.subscription.deleteMany({ where: { clientId } }),
+    prisma.qboConnection.deleteMany({ where: { clientId } }),
+    prisma.client.delete({ where: { id: clientId } }),
+  ]);
+  revalidatePath("/dashboard/clients");
+}

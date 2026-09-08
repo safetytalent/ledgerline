@@ -4,6 +4,7 @@ import AgentActivityPanel from "@/components/agent/AgentActivityPanel";
 import ServiceEditor from "@/components/clients/ServiceEditor";
 import SyncNowButton from "@/components/clients/SyncNowButton";
 import AddClientButton from "@/components/clients/AddClientButton";
+import DeleteClientButton from "@/components/clients/DeleteClientButton";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,7 @@ export default async function ClientsPage() {
                   <th className="pb-2 font-medium">Subscription</th>
                   <th className="pb-2 font-medium">Services</th>
                   <th className="pb-2 font-medium">Transactions on file</th>
+                  <th className="pb-2 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -92,6 +94,9 @@ export default async function ClientsPage() {
                       <ServiceEditor clientId={c.id} initialServices={c.activeServices} />
                     </td>
                     <td className="py-3 font-mono">{c._count.transactions}</td>
+                    <td className="py-3">
+                      <DeleteClientButton clientId={c.id} clientName={c.name} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
