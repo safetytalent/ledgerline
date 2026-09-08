@@ -2,17 +2,25 @@
 
 import { useTransition } from "react";
 import { getDocumentUrl, deleteDocument } from "@/app/dashboard/documents/actions";
+import ExtractionPanel from "@/components/documents/ExtractionPanel";
+import type { ExtractedField } from "@/lib/agents/intake-agent";
 
 export default function DocumentRow({
   id,
   fileName,
   storagePath,
   uploadedAt,
+  extractionStatus,
+  extractedFields,
+  extractionError,
 }: {
   id: string;
   fileName: string;
   storagePath: string;
   uploadedAt: string;
+  extractionStatus: string;
+  extractedFields: ExtractedField[] | null;
+  extractionError: string | null;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -28,8 +36,16 @@ export default function DocumentRow({
   }
 
   return (
-    <tr className="border-b border-line">
-      <td className="py-2.5 font-medium">{fileName}</td>
+    <tr className="border-b border-line align-top">
+      <td className="py-2.5 font-medium">
+        {fileName}
+        <ExtractionPanel
+          documentId={id}
+          status={extractionStatus}
+          fields={extractedFields}
+          error={extractionError}
+        />
+      </td>
       <td className="py-2.5 font-mono text-[12px] text-[#6B675E]">{uploadedAt}</td>
       <td className="py-2.5">
         <button

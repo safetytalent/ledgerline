@@ -50,6 +50,9 @@ export default async function DocumentsPage() {
                           fileName={d.fileName}
                           storagePath={d.storagePath}
                           uploadedAt={d.uploadedAt.toLocaleDateString()}
+                          extractionStatus={d.extractionStatus}
+                          extractedFields={d.extractedFields as { label: string; value: string }[] | null}
+                          extractionError={d.extractionError}
                         />
                       ))}
                     </tbody>

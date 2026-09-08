@@ -26,11 +26,11 @@ model Location {
 }
 
 // Maps a Supabase auth user (auth.uid()) to the location they work at.
-// This is what prisma/sql/rls_policies.sql checks against — without a
+// This is what prisma/sql/rls_policies.sql checks against â€” without a
 // row here, a user can see nothing, which is the safe default.
 model UserLocation {
   id         String   @id @default(cuid())
-  userId     String   // Supabase auth.users.id — not a local FK, lives in a different schema
+  userId     String   // Supabase auth.users.id â€” not a local FK, lives in a different schema
   location   Location @relation(fields: [locationId], references: [id])
   locationId String
   role       String   @default("staff") // "staff" | "manager" | "owner"
@@ -51,7 +51,7 @@ model Client {
   corrections   CorrectionMemory[]
   closeTasks    CloseTask[]
   documents     Document[]
-  // Which of the firm's service lines this client is signed up for —
+  // Which of the firm's service lines this client is signed up for â€”
   // values come from lib/services.ts (the 50-item service catalog).
   // Only "Monthly Bookkeeping" is software-automated today (the
   // transaction review queue); the rest are tracked here so staff can
@@ -59,20 +59,20 @@ model Client {
   // before each service gets its own dedicated workflow built out.
   activeServices String[]             @default([])
   // Entity type drives which tax documents are required and whether
-  // K-1s apply at all — K-1s only exist for S-corps and partnerships,
+  // K-1s apply at all â€” K-1s only exist for S-corps and partnerships,
   // never C-corps or sole props. Nullable until staff sets it.
   entityType    EntityType?
   owners        ClientOwner[]
   taxReturnDrafts TaxReturnDraft[]
   formInstances FormInstance[]
-  // Auto-fill source #1 per the Document & Forms Library spec — the
+  // Auto-fill source #1 per the Document & Forms Library spec â€” the
   // client's own Ledgerline record. Nullable because most existing
   // clients won't have these populated yet; the Forms Agent leaves
   // any field it can't source blank for manual entry rather than
   // guessing.
   ein           String?
   address       String?
-  // Recipient address for e-signature requests (Phase J). Nullable —
+  // Recipient address for e-signature requests (Phase J). Nullable â€”
   // sendForESignature refuses to send rather than guessing an email.
   contactEmail  String?
   createdAt     DateTime              @default(now())
@@ -87,7 +87,7 @@ enum EntityType {
 }
 
 // Shareholders (S-corp) or partners (partnership) and their ownership
-// share — this is what determines how many K-1s are needed and how
+// share â€” this is what determines how many K-1s are needed and how
 // income is split between them. Not used for C-corp or sole prop.
 model ClientOwner {
   id                String   @id @default(cuid())
@@ -100,7 +100,7 @@ model ClientOwner {
 
 // Tracks whether a client is a paying subscriber. One row per client,
 // kept in sync with Stripe via the webhook in
-// app/api/billing/webhook/route.ts — never trust the frontend's idea
+// app/api/billing/webhook/route.ts â€” never trust the frontend's idea
 // of subscription status, only what Stripe confirms.
 model Subscription {
   id                   String   @id @default(cuid())
@@ -133,14 +133,14 @@ model Transaction {
   txnDate         DateTime
   // Phase E: which side of the P&L this belongs to. Purchase/Bill are
   // always EXPENSE; Deposit/Invoice/SalesReceipt are always INCOME.
-  // Defaults to EXPENSE for backward compatibility — every row that
+  // Defaults to EXPENSE for backward compatibility â€” every row that
   // existed before this field was added came from Purchase/Bill only.
   txnType         TxnType      @default(EXPENSE)
   suggestedCategory String?
-  confidenceScore Int          @default(0) // 0-100 — Phase A spec field name
+  confidenceScore Int          @default(0) // 0-100 â€” Phase A spec field name
   reasoning       String?      // human-readable explanation shown in the UI
   reviewStatus    ReviewStatus @default(PENDING_REVIEW)
-  // Not part of the Phase A spec's 4-value enum — kept separate because
+  // Not part of the Phase A spec's 4-value enum â€” kept separate because
   // "escalated to client for clarification" is a real, distinct state
   // the existing Agent Activity feed depends on, and collapsing it into
   // pending_review would silently lose that information.
@@ -162,7 +162,7 @@ enum ReviewStatus {
   REJECTED
 }
 
-// The per-client "learning" table — corrections feed future confidence
+// The per-client "learning" table â€” corrections feed future confidence
 model CorrectionMemory {
   id              String   @id @default(cuid())
   client          Client   @relation(fields: [clientId], references: [id])
@@ -176,7 +176,7 @@ model CorrectionMemory {
   @@unique([clientId, vendorName])
 }
 
-// Stubbed for Phase 4 — not built out yet, schema reserved
+// Stubbed for Phase 4 â€” not built out yet, schema reserved
 model RoyaltyReport {
   id         String   @id @default(cuid())
   locationId String
@@ -186,7 +186,7 @@ model RoyaltyReport {
   reportedAt DateTime @default(now())
 }
 
-// Monthly close checklist per client — tasks pulled directly from the
+// Monthly close checklist per client â€” tasks pulled directly from the
 // firm's "Monthly Financial Close" service line. One row per
 // (client, month, task).
 model CloseTask {
@@ -202,7 +202,7 @@ model CloseTask {
 }
 
 // Real uploaded files, stored in Supabase Storage under the
-// "documents" bucket. This row just tracks metadata — the actual
+// "documents" bucket. This row just tracks metadata â€” the actual
 // file bytes live in Storage at `storagePath`.
 model Document {
   id          String   @id @default(cuid())
@@ -214,11 +214,32 @@ model Document {
   // "Form 940") so the tax prep checklist can match uploads against
   // what's still missing. Null means "uploaded but not yet categorized."
   docType     String?
+  // Intake Agent (Phase F, the task that was missed the first time
+  // around): every uploaded document — whether the client is on
+  // QuickBooks or not — gets read by an AI model and turned into a
+  // structured list of fields. This is the AI's first-pass read,
+  // always pending a human's review before anyone treats it as fact.
+  extractedFields   Json?
+  extractionStatus  ExtractionStatus @default(NOT_EXTRACTED)
+  extractionError   String?
+  // Set only once a human has reviewed the AI's extraction and
+  // confirmed or corrected it — mirrors the Approval pattern used
+  // everywhere else in this app: the AI drafts, a named human signs
+  // off before it counts as real data.
+  verifiedBy  String?
+  verifiedAt  DateTime?
   uploadedAt  DateTime @default(now())
 }
 
+enum ExtractionStatus {
+  NOT_EXTRACTED
+  EXTRACTED
+  VERIFIED
+  FAILED
+}
+
 // Phase A: logs every action that required a human's explicit
-// approval — posting, e-signing, or e-filing. This is the audit
+// approval â€” posting, e-signing, or e-filing. This is the audit
 // trail that proves a named human approved before anything final
 // happened; nothing in this system bypasses writing a row here.
 model Approval {
@@ -235,18 +256,22 @@ enum ActionType {
   ESIGN
   EFILE
   // Phase F: a credentialed preparer's internal sign-off on a draft
-  // return — distinct from ESIGN, which is reserved for the client's
+  // return â€” distinct from ESIGN, which is reserved for the client's
   // own signature (Phase J/K). Keeping these separate means the audit
   // trail never conflates "staff reviewed this" with "the client
   // actually signed it."
   PREPARER_REVIEW
+  // Intake Agent: a human confirmed (or corrected) the AI's reading
+  // of an uploaded document. This is the checkpoint before extracted
+  // figures are treated as real data anywhere else in the app.
+  VERIFY_EXTRACTION
 }
 
 // Phase A: every correction a human makes in the review queue writes
-// here — a full history, distinct from CorrectionMemory (which only
+// here â€” a full history, distinct from CorrectionMemory (which only
 // keeps the current best guess per vendor). This is the raw material
 // the CEO/Operations Agent later summarizes into proposed rule
-// changes — it never edits anything itself.
+// changes â€” it never edits anything itself.
 model LearningLog {
   id         String   @id @default(cuid())
   userId     String   // who made the correction
@@ -259,13 +284,13 @@ model LearningLog {
 
 // Phase F: a draft return's key totals, computed from approved,
 // reconciled financials for one client/tax year. This is a workpaper
-// summary, not an actual IRS form — real form generation belongs to
+// summary, not an actual IRS form â€” real form generation belongs to
 // the Document & Forms Library (Phase H onward).
 //
 // Rule 1 hard gate: a draft can NEVER be marked PREPARER_APPROVED
 // except through recordPreparerSignoff() in actions.ts, which
 // requires a named preparer and records who/when. There is no other
-// code path that writes this status — the gate is enforced in the
+// code path that writes this status â€” the gate is enforced in the
 // server action itself, not hidden behind a disabled button.
 model TaxReturnDraft {
   id                  String           @id @default(cuid())
@@ -276,7 +301,7 @@ model TaxReturnDraft {
   totalExpenses       Decimal
   netIncome           Decimal
   status              DraftStatus      @default(DRAFT)
-  // Set only by recordPreparerSignoff() — the Rule 1 gate. Filing
+  // Set only by recordPreparerSignoff() â€” the Rule 1 gate. Filing
   // itself (Phase K) requires this to already be non-null before it
   // will let a form move toward the client e-signature step.
   preparerApprovedBy  String?
@@ -293,7 +318,7 @@ enum DraftStatus {
 }
 
 // Phase H: the four-category template library from the Document &
-// Forms Library spec. Seeded data, not hardcoded in the UI — so the
+// Forms Library spec. Seeded data, not hardcoded in the UI â€” so the
 // library can grow without a code change.
 model FormTemplate {
   id          String            @id @default(cuid())
@@ -314,7 +339,7 @@ enum TemplateCategory {
 // One generated draft of a template for one client. fieldsData holds
 // the resolved fields as JSON: [{ label, value, provenance, empty }],
 // matching the shape DocumentsLibrary.tsx already expects. The Forms
-// Agent only ever creates rows here — it never sends anything for
+// Agent only ever creates rows here â€” it never sends anything for
 // signature itself; that's a human action layered on top in Phase J.
 model FormInstance {
   id         String       @id @default(cuid())
