@@ -20,6 +20,7 @@ const NAV_SECTIONS = [
     items: [
       { name: "Operations Overview", href: "/dashboard/operations" },
       { name: "Financial Reports", href: "/dashboard/reports" },
+      { name: "Learning Review", href: "/dashboard/qa-rollup" },
       { name: "Agent Activity", href: "/dashboard/agent-activity" },
       { name: "Anomalies", href: "/dashboard/anomalies" },
       { name: "KPI Dashboards", href: "/dashboard/kpi" },
