@@ -87,7 +87,14 @@ export default function ExtractionPanel({
           )}
 
           {status === "NOT_EXTRACTED" && (
-            <p className="text-[12px] text-inkFaint">Waiting on the AI to read this document.</p>
+            <div className="mb-2">
+              <p className="text-[12px] text-inkFaint mb-2">
+                This document hasn't been read yet.
+              </p>
+              <button onClick={retry} disabled={isPending} className="text-[12px] text-brass underline">
+                {isPending ? "Reading..." : "Read this document now"}
+              </button>
+            </div>
           )}
 
           {(status === "EXTRACTED" || status === "VERIFIED") && (
