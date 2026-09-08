@@ -29,12 +29,16 @@ export type ExtractedField = {
   value: string;
 };
 
-const EXTRACTION_PROMPT = `You are reading a bookkeeping/tax document for a firm's intake process. Extract every meaningful labeled figure, date, name, or identifier you can find — this could be a Profit & Loss statement, a W-2, a 940, a 941, a bank statement, or something else entirely. Do not guess at anything not actually printed on the document.
+const EXTRACTION_PROMPT = `You are reading a document for a bookkeeping/tax firm's intake process. First, decide whether this is an IRS or state tax authority NOTICE (a letter about a filing, balance, audit, or account issue) as opposed to an ordinary bookkeeping document (P&L, W-2, 940, 941, bank statement, etc.).
 
-Return ONLY a JSON array, no other text, in this exact shape:
-[{"label": "Employer EIN", "value": "12-3456789"}, {"label": "Total wages", "value": "$84,200.00"}]
+Return ONLY a JSON object, no other text, in this exact shape:
+{"isNotice": false, "noticeSummary": null, "fields": [{"label": "Employer EIN", "value": "12-3456789"}]}
 
-If you cannot read the document at all, return an empty array: []`;
+If it IS a notice: set "isNotice" to true, write a short plain-English summary of what the notice says and what it's asking for in "noticeSummary" (2-4 sentences, no legal advice, no suggested response), and leave "fields" as an empty array — a notice's content is a summary, not a field list.
+
+If it is NOT a notice: set "isNotice" to false, "noticeSummary" to null, and extract every meaningful labeled figure, date, name, or identifier into "fields". Do not guess at anything not actually printed on the document.
+
+If you cannot read the document at all, return {"isNotice": false, "noticeSummary": null, "fields": []}`;
 
 /**
  * Downloads the file from Supabase Storage and sends it to Claude to
@@ -91,13 +95,23 @@ export async function extractDocumentFields(documentId: string): Promise<void> {
     });
 
     const textBlock = response.content.find((b) => b.type === "text");
-    const raw = textBlock && "text" in textBlock ? textBlock.text : "[]";
-    const jsonMatch = raw.match(/\[[\s\S]*\]/);
-    const fields: ExtractedField[] = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+    const raw = textBlock && "text" in textBlock ? textBlock.text : "{}";
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    const parsed: { isNotice?: boolean; noticeSummary?: string | null; fields?: ExtractedField[] } =
+      jsonMatch ? JSON.parse(jsonMatch[0]) : {};
 
     await prisma.document.update({
       where: { id: documentId },
-      data: { extractedFields: fields, extractionStatus: "EXTRACTED", extractionError: null },
+      data: {
+        extractedFields: parsed.fields ?? [],
+        extractionStatus: "EXTRACTED",
+        extractionError: null,
+        // Notice Triage Agent: this document reads as an IRS/state
+        // notice — always flagged for a human to route to a
+        // preparer or attorney, never given a drafted response.
+        noticeSummary: parsed.isNotice ? parsed.noticeSummary ?? null : null,
+        requiresLegalReview: !!parsed.isNotice,
+      },
     });
   } catch (err) {
     await prisma.document.update({

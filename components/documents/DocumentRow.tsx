@@ -13,6 +13,8 @@ export default function DocumentRow({
   extractionStatus,
   extractedFields,
   extractionError,
+  noticeSummary,
+  requiresLegalReview,
 }: {
   id: string;
   fileName: string;
@@ -21,6 +23,8 @@ export default function DocumentRow({
   extractionStatus: string;
   extractedFields: ExtractedField[] | null;
   extractionError: string | null;
+  noticeSummary: string | null;
+  requiresLegalReview: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -44,6 +48,8 @@ export default function DocumentRow({
           status={extractionStatus}
           fields={extractedFields}
           error={extractionError}
+          noticeSummary={noticeSummary}
+          requiresLegalReview={requiresLegalReview}
         />
       </td>
       <td className="py-2.5 font-mono text-[12px] text-[#6B675E]">{uploadedAt}</td>

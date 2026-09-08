@@ -14,6 +14,7 @@ const NAV_SECTIONS = [
       { name: "Tax Return Drafts", href: "/dashboard/tax-returns" },
       { name: "Documents", href: "/dashboard/documents" },
       { name: "Document Library", href: "/dashboard/document-library" },
+      { name: "AR Reminders", href: "/dashboard/ar-reminders" },
     ],
   },
   {

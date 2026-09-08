@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { createClient as createSupabaseServer } from "@/lib/supabase/server";
+import { totalVerifiedIncome } from "@/lib/agents/personal-return-agent";
 
 async function currentUserId(): Promise<string> {
   const supabase = createSupabaseServer();
@@ -54,6 +55,39 @@ export async function generateReturnDraft(clientId: string, taxYear: string) {
       totalIncome,
       totalExpenses,
       netIncome: totalIncome - totalExpenses,
+      status: "DRAFT",
+      preparerApprovedBy: null,
+      preparerApprovedAt: null,
+    },
+  });
+
+  revalidatePath("/dashboard/tax-returns");
+}
+
+/**
+ * Personal Return Draft Agent. Same DRAFT-only guarantee as the
+ * business version above — this can never itself produce a
+ * PREPARER_APPROVED row, and it only ever sums income a human has
+ * already verified off uploaded documents. No deductions, no
+ * credits, no filing status — those stay a preparer's call.
+ */
+export async function generatePersonalReturnDraft(clientId: string, taxYear: string) {
+  const totalIncome = await totalVerifiedIncome(clientId, taxYear);
+
+  await prisma.taxReturnDraft.upsert({
+    where: { clientId_taxYear: { clientId, taxYear } },
+    create: {
+      clientId,
+      taxYear,
+      totalIncome,
+      totalExpenses: 0,
+      netIncome: totalIncome,
+      status: "DRAFT",
+    },
+    update: {
+      totalIncome,
+      totalExpenses: 0,
+      netIncome: totalIncome,
       status: "DRAFT",
       preparerApprovedBy: null,
       preparerApprovedAt: null,

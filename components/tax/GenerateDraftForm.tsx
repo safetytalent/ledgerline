@@ -1,20 +1,33 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { generateReturnDraft } from "@/app/dashboard/tax-returns/actions";
+import { generateReturnDraft, generatePersonalReturnDraft } from "@/app/dashboard/tax-returns/actions";
 
 export default function GenerateDraftForm({ clients }: { clients: { id: string; name: string }[] }) {
   const [clientId, setClientId] = useState("");
   const [taxYear, setTaxYear] = useState(String(new Date().getFullYear()));
+  const [kind, setKind] = useState<"business" | "personal">("business");
   const [isPending, startTransition] = useTransition();
 
   function submit() {
     if (!clientId || !taxYear.trim()) return;
-    startTransition(() => generateReturnDraft(clientId, taxYear.trim()));
+    startTransition(() =>
+      kind === "business"
+        ? generateReturnDraft(clientId, taxYear.trim())
+        : generatePersonalReturnDraft(clientId, taxYear.trim())
+    );
   }
 
   return (
     <div className="flex items-center gap-2">
+      <select
+        value={kind}
+        onChange={(e) => setKind(e.target.value as "business" | "personal")}
+        className="border border-line rounded-sm px-2 py-1.5 text-[13px]"
+      >
+        <option value="business">Business return</option>
+        <option value="personal">Personal return</option>
+      </select>
       <select
         value={clientId}
         onChange={(e) => setClientId(e.target.value)}

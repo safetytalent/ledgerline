@@ -23,11 +23,15 @@ export default function ExtractionPanel({
   status,
   fields,
   error,
+  noticeSummary,
+  requiresLegalReview,
 }: {
   documentId: string;
   status: string;
   fields: ExtractedField[] | null;
   error: string | null;
+  noticeSummary: string | null;
+  requiresLegalReview: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<ExtractedField[]>(fields ?? []);
@@ -49,12 +53,29 @@ export default function ExtractionPanel({
     <div className="mt-1">
       <button
         onClick={() => setOpen((o) => !o)}
-        className={`font-mono text-[10px] px-1.5 py-0.5 whitespace-nowrap ${STATUS_STYLE[status] ?? ""}`}
+        className={`font-mono text-[10px] px-1.5 py-0.5 whitespace-nowrap ${
+          requiresLegalReview ? "bg-rustSoft text-rust" : STATUS_STYLE[status] ?? ""
+        }`}
       >
-        {STATUS_LABEL[status] ?? status}
+        {requiresLegalReview ? "IRS/STATE NOTICE — NEEDS PREPARER" : STATUS_LABEL[status] ?? status}
       </button>
 
-      {open && (
+      {open && requiresLegalReview && (
+        <div className="mt-2 border border-rust bg-rustSoft p-3 max-w-md">
+          <div className="text-[11px] font-semibold text-rust mb-1.5">
+            Notice Triage Agent — route to a preparer or attorney
+          </div>
+          <p className="text-[12px] text-inkSoft whitespace-pre-wrap">
+            {noticeSummary ?? "This looks like an IRS or state notice, but no summary could be read."}
+          </p>
+          <p className="text-[11px] text-rust italic mt-2">
+            This agent never drafts a response — always escalate to a credentialed preparer or
+            attorney.
+          </p>
+        </div>
+      )}
+
+      {open && !requiresLegalReview && (
         <div className="mt-2 border border-line bg-white p-3 max-w-md">
           {status === "FAILED" && (
             <div className="mb-2">

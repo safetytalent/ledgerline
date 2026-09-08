@@ -188,6 +188,8 @@ export default async function ClientDashboardPage({
                       extractionStatus={d.extractionStatus}
                       extractedFields={d.extractedFields as { label: string; value: string }[] | null}
                       extractionError={d.extractionError}
+                      noticeSummary={d.noticeSummary}
+                      requiresLegalReview={d.requiresLegalReview}
                     />
                   ))}
                 </tbody>

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getValidAccessToken } from "@/lib/qbo/access-token";
 import { processQboEntity } from "@/lib/agents/process-transaction";
+import { fetchEntityById } from "@/lib/qbo/client";
+import { generateRemindersForClient } from "@/lib/agents/ar-nudge-agent";
 
 const API_BASE =
   process.env.QBO_ENVIRONMENT === "production"
@@ -26,6 +28,38 @@ async function queryEntities(
   const data = await res.json();
   const rows = data?.QueryResponse?.[entityType] ?? [];
   return rows.map((r: { Id: string }) => r.Id);
+}
+
+/**
+ * AR Nudge Agent's data source. The general Transaction pipeline
+ * above records Invoices too, but only as a generic income line — it
+ * has no concept of "balance still owed" or "due date". This is a
+ * separate, narrower sync that pulls exactly those two fields for
+ * every invoice, so the aging report reflects what's actually still
+ * unpaid in QuickBooks right now, not a static snapshot.
+ */
+async function syncInvoiceRecords(
+  clientId: string,
+  realmId: string,
+  accessToken: string,
+  invoiceIds: string[]
+) {
+  for (const id of invoiceIds) {
+    const raw = await fetchEntityById(realmId, accessToken, "Invoice", id);
+    if (!raw) continue;
+
+    const balance = Number(raw.Balance ?? 0);
+    const totalAmount = Number(raw.TotalAmt ?? 0);
+    const customerName = raw.CustomerRef?.name ?? "Unknown Customer";
+    const dueDate = raw.DueDate ? new Date(raw.DueDate) : new Date();
+    const txnDate = raw.TxnDate ? new Date(raw.TxnDate) : new Date();
+
+    await prisma.invoice.upsert({
+      where: { qboInvoiceId: id },
+      create: { clientId, qboInvoiceId: id, customerName, totalAmount, balance, dueDate, txnDate },
+      update: { customerName, totalAmount, balance, dueDate, txnDate },
+    });
+  }
 }
 
 /**
@@ -79,6 +113,9 @@ export async function POST(req: NextRequest) {
     const txn = await processQboEntity(clientId, client.qboRealmId, accessToken, entity.type, entity.id);
     if (txn) processed++;
   }
+
+  await syncInvoiceRecords(clientId, client.qboRealmId, accessToken, invoiceIds);
+  await generateRemindersForClient(clientId);
 
   return NextResponse.json({ found: allEntities.length, processed });
 }
