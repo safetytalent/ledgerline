@@ -52,12 +52,11 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Protect everything except static assets, images, and the two
+  // Protect everything except static assets, images, and the three
   // kinds of routes that must stay reachable with no user session:
-  // QBO's OAuth/webhook callbacks, and Stripe's webhook (Stripe has
-  // no login — without this exclusion, its POST requests were being
-  // redirected to /login and never reaching our webhook code).
+  // QBO's OAuth/webhook callbacks, Stripe's webhook, and DocuSign's
+  // Connect webhook (none of these have a Ledgerline login).
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/qbo|api/billing/webhook).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/qbo|api/billing/webhook|api/docusign/webhook).*)",
   ],
 };

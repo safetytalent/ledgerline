@@ -72,6 +72,9 @@ model Client {
   // guessing.
   ein           String?
   address       String?
+  // Recipient address for e-signature requests (Phase J). Nullable —
+  // sendForESignature refuses to send rather than guessing an email.
+  contactEmail  String?
   createdAt     DateTime              @default(now())
 }
 
@@ -320,6 +323,9 @@ model FormInstance {
   client     Client       @relation(fields: [clientId], references: [id])
   clientId   String
   fieldsData Json
+  // Phase J: set once sent to DocuSign, used by the webhook to find
+  // which instance an envelope-completed event belongs to.
+  docusignEnvelopeId String? @unique
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @default(now()) @updatedAt
 }
