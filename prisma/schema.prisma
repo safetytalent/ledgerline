@@ -64,6 +64,14 @@ model Client {
   entityType    EntityType?
   owners        ClientOwner[]
   taxReturnDrafts TaxReturnDraft[]
+  formInstances FormInstance[]
+  // Auto-fill source #1 per the Document & Forms Library spec — the
+  // client's own Ledgerline record. Nullable because most existing
+  // clients won't have these populated yet; the Forms Agent leaves
+  // any field it can't source blank for manual entry rather than
+  // guessing.
+  ein           String?
+  address       String?
   createdAt     DateTime              @default(now())
 }
 
@@ -279,4 +287,39 @@ model TaxReturnDraft {
 enum DraftStatus {
   DRAFT
   PREPARER_APPROVED
+}
+
+// Phase H: the four-category template library from the Document &
+// Forms Library spec. Seeded data, not hardcoded in the UI — so the
+// library can grow without a code change.
+model FormTemplate {
+  id          String            @id @default(cuid())
+  name        String            @unique
+  category    TemplateCategory
+  description String?
+  instances   FormInstance[]
+  createdAt   DateTime          @default(now())
+}
+
+enum TemplateCategory {
+  CLIENT_ONBOARDING
+  IRS_OFFICIAL
+  BUSINESS_DOCUMENTS
+  INTERNAL_COMPLIANCE
+}
+
+// One generated draft of a template for one client. fieldsData holds
+// the resolved fields as JSON: [{ label, value, provenance, empty }],
+// matching the shape DocumentsLibrary.tsx already expects. The Forms
+// Agent only ever creates rows here — it never sends anything for
+// signature itself; that's a human action layered on top in Phase J.
+model FormInstance {
+  id         String       @id @default(cuid())
+  template   FormTemplate @relation(fields: [templateId], references: [id])
+  templateId String
+  client     Client       @relation(fields: [clientId], references: [id])
+  clientId   String
+  fieldsData Json
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @default(now()) @updatedAt
 }

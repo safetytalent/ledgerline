@@ -17,6 +17,13 @@ const config: Config = {
         rust: "#9B3A26",
         rustSoft: "#F1DCD5",
         ink3: "#263760",
+        // Added for the Documents & Forms Library screen — reuses the
+        // existing ink/paper/brass/teal/rust palette above wherever a
+        // close match exists, and adds only the few tones that don't:
+        // a deeper brass, and two muted text tones for label/caption text.
+        brassDeep: "#7D5B2C",
+        inkSoft: "#524E3F",
+        inkFaint: "#8A8571",
       },
       fontFamily: {
         display: ["Fraunces", "serif"],

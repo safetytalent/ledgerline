@@ -13,6 +13,7 @@ const NAV_SECTIONS = [
       { name: "Tax Prep Checklist", href: "/dashboard/tax-prep" },
       { name: "Tax Return Drafts", href: "/dashboard/tax-returns" },
       { name: "Documents", href: "/dashboard/documents" },
+      { name: "Document Library", href: "/dashboard/document-library" },
     ],
   },
   {
